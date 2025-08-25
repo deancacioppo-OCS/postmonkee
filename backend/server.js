@@ -6,6 +6,7 @@ import pg from 'pg';
 import FormData from 'form-data';
 import OpenAI from 'openai';
 import sharp from 'sharp';
+import { Readable } from 'stream';
 
 const { Pool } = pg;
 
@@ -301,12 +302,20 @@ async function uploadImageToWordPress(imageBase64, filename, altText, client) {
         const imageBuffer = Buffer.from(imageBase64, 'base64');
         console.log(`📊 Image buffer size: ${imageBuffer.length} bytes`);
         
-        // Create form data for WordPress media upload
+        // Create form data for WordPress media upload using stream approach
         const form = new FormData();
-        form.append('file', imageBuffer, {
+        
+        // Create a readable stream from the buffer
+        const imageStream = Readable.from(imageBuffer);
+        
+        form.append('file', imageStream, {
             filename: filename,
-            contentType: 'image/jpeg' // Assuming JPEG, could be dynamic
+            contentType: 'image/jpeg',
+            knownLength: imageBuffer.length
         });
+        
+        console.log(`📋 FormData headers:`, form.getHeaders());
+        console.log(`📦 FormData length:`, form.getLengthSync());
         
         // Upload to WordPress media library
         const uploadUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/media`;
