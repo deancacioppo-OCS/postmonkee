@@ -53,7 +53,17 @@ async function initializeDb() {
     } catch (alterError) {
       console.log('Note: Could not add sitemapUrl column:', alterError.message);
     }
-     // Create enhanced sitemap_urls table
+     // Check if sitemap_urls table exists and get its structure
+    const tableCheck = await client.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'sitemap_urls' 
+      ORDER BY ordinal_position;
+    `);
+    
+    console.log('Current sitemap_urls table structure:', tableCheck.rows);
+
+    // Create enhanced sitemap_urls table
     await client.query(`
       CREATE TABLE IF NOT EXISTS sitemap_urls (
         id SERIAL PRIMARY KEY,
@@ -75,7 +85,8 @@ async function initializeDb() {
       { name: 'title', type: 'TEXT' },
       { name: 'description', type: 'TEXT' },
       { name: 'keywords', type: 'TEXT' },
-      { name: 'category', type: 'TEXT' }
+      { name: 'category', type: 'TEXT' },
+      { name: 'last_modified', type: 'TIMESTAMP WITH TIME ZONE' }
     ];
 
     for (const column of columnsToAdd) {
@@ -88,14 +99,77 @@ async function initializeDb() {
         `, [column.name]);
         
         if (columnCheck.rows.length === 0) {
-          await client.query(`ALTER TABLE sitemap_urls ADD COLUMN "${column.name}" ${column.type};`);
+          await client.query(`ALTER TABLE sitemap_urls ADD COLUMN ${column.name} ${column.type};`);
           console.log(`✓ Added column '${column.name}' to sitemap_urls table`);
         } else {
           console.log(`✓ Column '${column.name}' already exists in sitemap_urls table`);
         }
       } catch (alterError) {
-        console.log(`Note: Could not add column '${column.name}':`, alterError.message);
+        console.log(`❌ Could not add column '${column.name}':`, alterError.message);
       }
+    }
+
+    // Check if we still have missing columns after migration attempts
+    const finalCheck = await client.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'sitemap_urls';
+    `);
+    
+    const currentColumns = finalCheck.rows.map(row => row.column_name);
+    const requiredColumns = ['id', 'client_id', 'url', 'title', 'description', 'keywords', 'category', 'last_modified', 'createdAt'];
+    const missingColumns = requiredColumns.filter(col => !currentColumns.includes(col) && !currentColumns.includes(`"${col}"`));
+    
+    console.log('Final column check - Current columns:', currentColumns);
+    console.log('Final column check - Missing columns:', missingColumns);
+    
+    // If we're still missing critical columns, recreate the table
+    if (missingColumns.length > 0) {
+      console.log('⚠️ Critical columns still missing. Recreating sitemap_urls table...');
+      
+      // Backup existing data if any
+      let backupData = [];
+      try {
+        const backup = await client.query('SELECT client_id, url FROM sitemap_urls');
+        backupData = backup.rows;
+        console.log(`📦 Backed up ${backupData.length} existing URLs`);
+      } catch (backupError) {
+        console.log('No existing data to backup');
+      }
+      
+      // Drop and recreate table
+      await client.query('DROP TABLE IF EXISTS sitemap_urls CASCADE');
+      await client.query(`
+        CREATE TABLE sitemap_urls (
+          id SERIAL PRIMARY KEY,
+          client_id TEXT NOT NULL,
+          url TEXT NOT NULL,
+          title TEXT,
+          description TEXT,
+          keywords TEXT,
+          category TEXT,
+          last_modified TIMESTAMP WITH TIME ZONE,
+          "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+          UNIQUE(client_id, url)
+        );
+      `);
+      
+      // Restore basic data if we had any
+      for (const row of backupData) {
+        try {
+          await client.query(
+            'INSERT INTO sitemap_urls (client_id, url, "createdAt") VALUES ($1, $2, NOW())',
+            [row.client_id, row.url]
+          );
+        } catch (restoreError) {
+          console.log('Failed to restore row:', restoreError.message);
+        }
+      }
+      
+      console.log('✅ Successfully recreated sitemap_urls table with all columns');
+    } else {
+      console.log('✅ All required columns are present in sitemap_urls table');
     }
     // Create used_topics table
     await client.query(`
