@@ -302,38 +302,37 @@ async function uploadImageToWordPress(imageBase64, filename, altText, client) {
         const imageBuffer = Buffer.from(imageBase64, 'base64');
         console.log(`📊 Image buffer size: ${imageBuffer.length} bytes`);
         
-        // Create form data for WordPress media upload using stream approach
-        const form = new FormData();
-        
-        // Create a readable stream from the buffer
-        const imageStream = Readable.from(imageBuffer);
-        
-        form.append('file', imageStream, {
-            filename: filename,
-            contentType: 'image/jpeg',
-            knownLength: imageBuffer.length
-        });
-        
-        console.log(`📋 FormData headers:`, form.getHeaders());
-        console.log(`📦 FormData length:`, form.getLengthSync());
-        
-        // Upload to WordPress media library
+        // Use direct binary upload (more reliable than FormData for WordPress)
         const uploadUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/media`;
+        
+        console.log(`🔗 Upload URL: ${uploadUrl}`);
+        console.log(`📋 Using direct binary upload method (not FormData)`);
+        
         const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
             headers: {
                 'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`,
-                ...form.getHeaders()
+                'Content-Type': 'image/jpeg',
+                'Content-Disposition': `attachment; filename="${filename}"`,
+                'Cache-Control': 'no-cache'
             },
-            body: form
+            body: imageBuffer  // Send raw buffer directly
         });
+        
+        console.log(`📊 Upload response status: ${uploadResponse.status}`);
         
         if (!uploadResponse.ok) {
             const errorText = await uploadResponse.text();
+            console.error(`❌ WordPress upload error response:`, errorText);
             throw new Error(`WordPress media upload failed: ${uploadResponse.status} - ${errorText}`);
         }
         
         const mediaData = await uploadResponse.json();
+        console.log(`✅ WordPress upload successful:`, {
+            id: mediaData.id,
+            url: mediaData.source_url,
+            title: mediaData.title?.rendered
+        });
         
         // Update ALT text if provided
         if (altText) {
