@@ -4,6 +4,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import crypto from 'crypto';
 import pg from 'pg';
 import FormData from 'form-data';
+import OpenAI from 'openai';
 
 const { Pool } = pg;
 
@@ -210,7 +211,54 @@ if (!process.env.API_KEY) {
 }
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// Initialize OpenAI for image generation
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY // You'll need to set this in Render
+});
+
 // --- Helper Functions ---
+
+// Helper function to generate image in parallel using DALL-E 3
+async function generateFeaturedImage(title, industry) {
+    console.log(`🖼️ Starting parallel DALL-E 3 image generation for "${title}"`);
+    
+    try {
+        // Create a detailed, professional prompt for DALL-E 3
+        const imagePrompt = `Create a professional, modern featured image for a blog post titled "${title}" in the ${industry} industry. The image should be visually appealing, relevant to the topic, high quality, suitable for a blog header, landscape orientation, clean design, minimal or no text overlay, appropriate for ${industry} industry content, engaging and professional.`;
+
+        // Generate image using OpenAI DALL-E 3
+        const response = await openai.images.generate({
+            model: "dall-e-3",
+            prompt: imagePrompt,
+            n: 1,
+            size: "1792x1024", // Landscape format, high quality
+            quality: "hd",
+            response_format: "b64_json"
+        });
+        
+        if (!response.data || !response.data[0] || !response.data[0].b64_json) {
+            throw new Error('No image data returned from DALL-E 3');
+        }
+
+        const imageBase64 = response.data[0].b64_json;
+        
+        // Generate SEO-friendly ALT text
+        const altText = `Professional ${industry} blog featured image for "${title}"`;
+        
+        console.log(`✅ DALL-E 3 image generation completed for "${title}"`);
+        
+        return {
+            imageBase64,
+            altText,
+            description: `Featured image for blog post: ${title}`,
+            specifications: `Professional ${industry} industry image, 1792x1024px, HD quality, landscape orientation`
+        };
+        
+    } catch (error) {
+        console.error(`❌ DALL-E 3 image generation failed for "${title}":`, error.message);
+        throw error;
+    }
+}
 
 async function uploadImageToWordPress(imageBase64, filename, altText, client) {
     try {
@@ -875,31 +923,8 @@ app.post('/api/generate/images', async (req, res) => {
     }
 
     try {
-        // Generate featured image with Gemini's image generation
-        const featuredImageResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: `Generate a professional, modern featured image for this blog post titled "${title}" in the ${client.industry} industry. The image should be:
-            - Visually appealing and relevant to the topic
-            - Professional quality suitable for a blog header
-            - Minimum 1400px wide, landscape orientation
-            - Very little or no text overlay
-            - Clean, modern design
-            - Appropriate for ${client.industry} industry
-            
-            Generate the actual image, not just a description.`,
-            config: {
-                responseMimeType: "application/json",
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        imageBase64: { type: Type.STRING, description: 'Base64 encoded image data' },
-                        altText: { type: Type.STRING, description: 'SEO-friendly ALT text for the image' },
-                        description: { type: Type.STRING, description: 'Brief description of the image' }
-                    },
-                    required: ["imageBase64", "altText", "description"]
-                }
-            }
-        });
+        // Generate featured image using our new image generation function
+        const imageData = await generateFeaturedImage(title, client.industry);
 
         // Generate in-body images for key headings
         const inBodyImages = [];
@@ -923,15 +948,12 @@ app.post('/api/generate/images', async (req, res) => {
             }
         }
 
-        // Parse featured image response
-        const featuredImageData = JSON.parse(featuredImageResponse.text);
-        
         res.json({
             featuredImage: {
-                imageBase64: featuredImageData.imageBase64,
-                altText: featuredImageData.altText,
-                description: featuredImageData.description,
-                specifications: "1400px+ wide, professional design, minimal text"
+                imageBase64: imageData.imageBase64,
+                altText: imageData.altText,
+                description: imageData.description,
+                specifications: imageData.specifications
             },
             inBodyImages: inBodyImages
         });
@@ -1626,8 +1648,17 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         });
         
         const plan = JSON.parse(planResponse.text);
+        console.log(`✅ Step 2 Complete: Plan generated - "${plan.title}"`);
 
-        // Step 3: Get internal links
+        // Step 3: Start Image Generation in Parallel (Non-blocking)
+        console.log(`🖼️ Step 3: Starting parallel image generation...`);
+        const imagePromise = generateFeaturedImage(plan.title, client.industry)
+            .catch(error => {
+                console.warn('⚠️ Image generation failed, continuing without image:', error.message);
+                return null; // Return null on failure so Lucky mode continues
+            });
+
+        // Step 4: Get internal links
         let internalLinks = [];
         try {
             const linkResult = await pool.query(
@@ -1714,60 +1745,36 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         // Validate internal links in lucky blog content
         validateInternalLinks(contentData.content, internalLinks);
 
-        // Step 5: Generate and Upload Featured Image (TEMPORARILY DISABLED)
-        console.log(`🖼️ Skipping featured image generation (debugging mode)`);
+        // Step 5: Wait for Parallel Image Generation and Upload
+        console.log(`🖼️ Step 5: Waiting for parallel image generation to complete...`);
         let featuredImageId = null;
         
-        // TODO: Re-enable image generation once we confirm it works
-        // Currently disabled to prevent Lucky mode from hanging
-        
-        /*
         try {
-            console.log(`🖼️ Generating featured image for "${plan.title}"`);
+            // Wait for the parallel image generation to complete
+            const imageData = await imagePromise;
             
-            const imageResponse = await ai.models.generateContent({
-                model: "gemini-2.5-flash",
-                contents: `Generate a professional, modern featured image for this blog post titled "${plan.title}" in the ${client.industry} industry. The image should be:
-                - Visually appealing and relevant to the topic
-                - Professional quality suitable for a blog header
-                - Minimum 1400px wide, landscape orientation
-                - Very little or no text overlay
-                - Clean, modern design
-                - Appropriate for ${client.industry} industry
+            if (imageData && imageData.imageBase64) {
+                console.log(`✅ Image generation completed, uploading to WordPress...`);
                 
-                Generate the actual image, not just a description.`,
-                config: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            imageBase64: { type: Type.STRING, description: 'Base64 encoded image data' },
-                            altText: { type: Type.STRING, description: 'SEO-friendly ALT text for the image' },
-                            description: { type: Type.STRING, description: 'Brief description of the image' }
-                        },
-                        required: ["imageBase64", "altText", "description"]
-                    }
-                }
-            });
-            
-            const imageData = JSON.parse(imageResponse.text);
-            const filename = `featured-${plan.title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.jpg`;
-            
-            const uploadedImage = await uploadImageToWordPress(
-                imageData.imageBase64,
-                filename,
-                imageData.altText,
-                client
-            );
-            
-            featuredImageId = uploadedImage.id;
-            console.log(`✅ Featured image uploaded successfully: ${uploadedImage.url}`);
+                const filename = `featured-${plan.title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.jpg`;
+                
+                const uploadedImage = await uploadImageToWordPress(
+                    imageData.imageBase64,
+                    filename,
+                    imageData.altText,
+                    client
+                );
+                
+                featuredImageId = uploadedImage.id;
+                console.log(`✅ Featured image uploaded successfully: ${uploadedImage.url}`);
+            } else {
+                console.log(`⚠️ No image data available, continuing without featured image`);
+            }
             
         } catch (imageError) {
-            console.warn('⚠️ Failed to generate/upload featured image:', imageError.message);
+            console.warn('⚠️ Failed to upload featured image:', imageError.message);
             // Continue without featured image rather than failing the whole process
         }
-        */
 
         // Step 6: Create WordPress Draft
         console.log(`📝 Creating WordPress draft for "${plan.title}"`);
