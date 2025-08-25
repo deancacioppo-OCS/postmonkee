@@ -18,6 +18,7 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
       uniqueValueProp: '',
       brandVoice: '',
       contentStrategy: '',
+      sitemapUrl: '',
       wp: { url: '', username: '' }
     }
   );
@@ -79,6 +80,19 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
             <TextareaField label="Unique Value Proposition" name="uniqueValueProp" value={formData.uniqueValueProp || ''} onChange={handleChange} />
             <TextareaField label="Brand Voice" name="brandVoice" value={formData.brandVoice || ''} onChange={handleChange} />
             <TextareaField label="Content Strategy" name="contentStrategy" value={formData.contentStrategy || ''} onChange={handleChange} />
+
+            <h3 className="text-lg font-semibold text-slate-300 pt-4 border-t border-slate-700">SEO & Internal Linking</h3>
+            <InputField 
+                label="XML Sitemap URL" 
+                name="sitemapUrl" 
+                value={formData.sitemapUrl || ''} 
+                onChange={handleChange} 
+                type="url" 
+                placeholder="https://yoursite.com/sitemap.xml"
+            />
+            <div className="text-xs text-slate-400 mt-1">
+                This will be used to find relevant internal links for blog posts. Minimum 2, average 5-8 internal links per article.
+            </div>
 
             <h3 className="text-lg font-semibold text-slate-300 pt-4 border-t border-slate-700">WordPress Details</h3>
             <InputField label="WordPress Site URL" name="wp.url" value={formData.wp?.url || ''} onChange={handleChange} type="url" />

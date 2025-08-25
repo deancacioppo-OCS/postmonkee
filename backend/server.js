@@ -28,17 +28,24 @@ async function initializeDb() {
         "uniqueValueProp" TEXT,
         "brandVoice" TEXT,
         "contentStrategy" TEXT,
+        "sitemapUrl" TEXT,
         wp JSONB,
         "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
-     // Create sitemap_urls table
+     // Create enhanced sitemap_urls table
     await client.query(`
       CREATE TABLE IF NOT EXISTS sitemap_urls (
         id SERIAL PRIMARY KEY,
         client_id TEXT NOT NULL,
         url TEXT NOT NULL,
+        title TEXT,
+        description TEXT,
+        keywords TEXT,
+        category TEXT,
+        last_modified TIMESTAMP WITH TIME ZONE,
+        "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
       );
     `);
@@ -80,6 +87,133 @@ if (!process.env.API_KEY) {
 }
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// --- Sitemap Parsing Functions ---
+
+async function parseSitemapForClient(clientId, sitemapUrl) {
+    try {
+        console.log(`Parsing sitemap for client ${clientId}: ${sitemapUrl}`);
+        
+        // Fetch the sitemap XML
+        const response = await fetch(sitemapUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch sitemap: ${response.statusText}`);
+        }
+        
+        const xmlText = await response.text();
+        
+        // Parse XML to extract URLs
+        const urlPattern = /<url>\s*<loc>(.*?)<\/loc>(?:\s*<lastmod>(.*?)<\/lastmod>)?.*?<\/url>/gs;
+        const urls = [];
+        let match;
+        
+        while ((match = urlPattern.exec(xmlText)) !== null) {
+            const url = match[1];
+            const lastmod = match[2] || null;
+            
+            // Skip non-page URLs (images, sitemaps, etc.)
+            if (url.includes('.xml') || url.includes('.jpg') || url.includes('.png') || url.includes('.pdf')) {
+                continue;
+            }
+            
+            urls.push({ url, lastmod });
+        }
+        
+        console.log(`Found ${urls.length} URLs in sitemap`);
+        
+        // Store URLs in database
+        for (const { url, lastmod } of urls) {
+            try {
+                await pool.query(
+                    'INSERT INTO sitemap_urls (client_id, url, last_modified) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+                    [clientId, url, lastmod ? new Date(lastmod) : null]
+                );
+            } catch (insertError) {
+                console.log(`Failed to insert URL ${url}:`, insertError.message);
+            }
+        }
+        
+        // Use AI to analyze and categorize URLs for better internal linking
+        if (urls.length > 0) {
+            await analyzeUrlsWithAI(clientId, urls.slice(0, 50)); // Analyze first 50 URLs
+        }
+        
+        return urls.length;
+    } catch (error) {
+        console.error('Error parsing sitemap:', error);
+        throw error;
+    }
+}
+
+async function analyzeUrlsWithAI(clientId, urls) {
+    try {
+        const client = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
+        if (client.rows.length === 0) return;
+        
+        const clientData = client.rows[0];
+        
+        // Analyze URLs in batches to extract titles and categorize
+        const urlList = urls.map(u => u.url).join('\n');
+        
+        const prompt = `
+            Analyze these URLs from a ${clientData.industry} website and extract likely page titles, descriptions, and categories for internal linking purposes:
+            
+            ${urlList}
+            
+            For each URL, provide:
+            1. Likely page title (infer from URL structure)
+            2. Brief description of what the page likely contains
+            3. Category/topic (for grouping related content)
+            4. Keywords that might be relevant for internal linking
+            
+            Focus on content that would be valuable for internal linking in blog posts.
+        `;
+        
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        pages: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    url: { type: Type.STRING },
+                                    title: { type: Type.STRING },
+                                    description: { type: Type.STRING },
+                                    category: { type: Type.STRING },
+                                    keywords: { type: Type.STRING }
+                                }
+                            }
+                        }
+                    },
+                    required: ["pages"]
+                }
+            }
+        });
+        
+        const analysis = JSON.parse(response.text);
+        
+        // Update database with AI analysis
+        for (const page of analysis.pages) {
+            try {
+                await pool.query(
+                    'UPDATE sitemap_urls SET title = $1, description = $2, category = $3, keywords = $4 WHERE client_id = $5 AND url = $6',
+                    [page.title, page.description, page.category, page.keywords, clientId, page.url]
+                );
+            } catch (updateError) {
+                console.log(`Failed to update URL analysis for ${page.url}:`, updateError.message);
+            }
+        }
+        
+        console.log(`Analyzed ${analysis.pages.length} URLs with AI`);
+    } catch (error) {
+        console.error('Error analyzing URLs with AI:', error);
+    }
+}
 
 // --- API Routes ---
 
@@ -116,17 +250,27 @@ app.get('/api/clients/:id', async (req, res) => {
 
 // CREATE a new client
 app.post('/api/clients', async (req, res) => {
-  const { name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp } = req.body;
+  const { name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, sitemapUrl, wp } = req.body;
   const newClient = {
     id: crypto.randomUUID(),
-    name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp
+    name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, sitemapUrl, wp
   };
   try {
     const result = await pool.query(
-      `INSERT INTO clients (id, name, industry, "websiteUrl", "uniqueValueProp", "brandVoice", "contentStrategy", wp) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [newClient.id, newClient.name, newClient.industry, newClient.websiteUrl, newClient.uniqueValueProp, newClient.brandVoice, newClient.contentStrategy, newClient.wp]
+      `INSERT INTO clients (id, name, industry, "websiteUrl", "uniqueValueProp", "brandVoice", "contentStrategy", "sitemapUrl", wp) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [newClient.id, newClient.name, newClient.industry, newClient.websiteUrl, newClient.uniqueValueProp, newClient.brandVoice, newClient.contentStrategy, newClient.sitemapUrl, newClient.wp]
     );
+    
+    // If sitemap URL is provided, parse and store it
+    if (sitemapUrl) {
+      try {
+        await parseSitemapForClient(newClient.id, sitemapUrl);
+      } catch (sitemapError) {
+        console.log('Failed to parse sitemap:', sitemapError.message);
+      }
+    }
+    
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -136,16 +280,29 @@ app.post('/api/clients', async (req, res) => {
 
 // UPDATE a client
 app.put('/api/clients/:id', async (req, res) => {
-    const { name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp } = req.body;
+    const { name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, sitemapUrl, wp } = req.body;
     try {
         const result = await pool.query(
             `UPDATE clients SET 
              name = $1, industry = $2, "websiteUrl" = $3, "uniqueValueProp" = $4, 
-             "brandVoice" = $5, "contentStrategy" = $6, wp = $7, "updatedAt" = NOW()
-             WHERE id = $8 RETURNING *`,
-            [name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp, req.params.id]
+             "brandVoice" = $5, "contentStrategy" = $6, "sitemapUrl" = $7, wp = $8, "updatedAt" = NOW()
+             WHERE id = $9 RETURNING *`,
+            [name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, sitemapUrl, wp, req.params.id]
         );
+        
         if (result.rows.length > 0) {
+            // If sitemap URL is provided and changed, parse and store it
+            if (sitemapUrl) {
+                try {
+                    // Clear existing sitemap URLs for this client
+                    await pool.query('DELETE FROM sitemap_urls WHERE client_id = $1', [req.params.id]);
+                    // Parse and store new sitemap
+                    await parseSitemapForClient(req.params.id, sitemapUrl);
+                } catch (sitemapError) {
+                    console.log('Failed to parse sitemap:', sitemapError.message);
+                }
+            }
+            
             res.json(result.rows[0]);
         } else {
             res.status(404).send('Client not found');
@@ -356,7 +513,24 @@ app.post('/api/generate/content', async (req, res) => {
         return res.status(500).json({ error: 'Database error' });
     }
 
+    // Get available internal links from sitemap
+    let internalLinks = [];
     try {
+        const linkResult = await pool.query(
+            'SELECT url, title, description, category, keywords FROM sitemap_urls WHERE client_id = $1 AND title IS NOT NULL ORDER BY "createdAt" DESC LIMIT 20',
+            [clientId]
+        );
+        internalLinks = linkResult.rows;
+    } catch (linkError) {
+        console.log('Failed to fetch internal links:', linkError.message);
+    }
+
+    try {
+        const internalLinksContext = internalLinks.length > 0 
+            ? `\nAvailable Internal Links (use 5-8 contextually relevant ones with natural anchor text):
+               ${internalLinks.map(link => `- ${link.title}: ${link.url} (Keywords: ${link.keywords || 'N/A'})`).join('\n')}`
+            : '\nNo internal links available yet.';
+
         const prompt = `
             You are an expert content writer for a company in the '${client.industry}' industry.
             Company's unique value proposition: '${client.uniqueValueProp}'
@@ -369,6 +543,7 @@ app.post('/api/generate/content', async (req, res) => {
             Angle: ${angle}
             Target Keywords: ${keywords.join(', ')}
             Outline: ${outline}
+            ${internalLinksContext}
             
             Requirements:
             - Write in HTML format with proper headings (h1, h2, h3)
@@ -377,7 +552,10 @@ app.post('/api/generate/content', async (req, res) => {
             - Make it engaging and valuable for readers
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
-            - Add internal linking suggestions as comments
+            - MUST include 5-8 contextual internal links using natural anchor text
+            - Internal links should flow naturally within sentences
+            - Use varied anchor text that matches the content context
+            - Minimum 2 internal links, average 5-8 per article
         `;
         
         const response = await ai.models.generateContent({
@@ -626,6 +804,70 @@ app.post('/api/publish/wordpress', async (req, res) => {
         console.error('Error publishing to WordPress:', error);
         res.status(500).json({ 
             error: 'Failed to publish to WordPress', 
+            details: error.message 
+        });
+    }
+});
+
+// Sitemap Management Endpoints
+app.post('/api/sitemap/parse', async (req, res) => {
+    const { clientId } = req.body;
+    
+    if(!clientId) {
+        return res.status(400).json({ error: 'Client ID is required' });
+    }
+    
+    let client;
+    try {
+       const result = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
+       if (result.rows.length === 0) {
+           return res.status(404).json({ error: 'Client not found' });
+       }
+       client = result.rows[0];
+    } catch(dbError) {
+        console.error('DB Error fetching client:', dbError);
+        return res.status(500).json({ error: 'Database error' });
+    }
+
+    if (!client.sitemapUrl) {
+        return res.status(400).json({ error: 'No sitemap URL configured for this client' });
+    }
+
+    try {
+        const urlCount = await parseSitemapForClient(clientId, client.sitemapUrl);
+        res.json({
+            success: true,
+            message: `Successfully parsed ${urlCount} URLs from sitemap`,
+            urlCount: urlCount,
+            sitemapUrl: client.sitemapUrl
+        });
+    } catch (error) {
+        console.error('Error parsing sitemap:', error);
+        res.status(500).json({ 
+            error: 'Failed to parse sitemap', 
+            details: error.message 
+        });
+    }
+});
+
+app.get('/api/sitemap/urls/:clientId', async (req, res) => {
+    const { clientId } = req.params;
+    
+    try {
+        const result = await pool.query(
+            'SELECT url, title, description, category, keywords, last_modified FROM sitemap_urls WHERE client_id = $1 ORDER BY "createdAt" DESC',
+            [clientId]
+        );
+        
+        res.json({
+            success: true,
+            urls: result.rows,
+            count: result.rows.length
+        });
+    } catch (error) {
+        console.error('Error fetching sitemap URLs:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch sitemap URLs', 
             details: error.message 
         });
     }
