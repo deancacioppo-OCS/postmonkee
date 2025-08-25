@@ -820,7 +820,7 @@ app.post('/api/generate/images', async (req, res) => {
         // Generate featured image
         const featuredImageResponse = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `Create a professional, modern featured image for a blog post titled "${title}" in the ${client.industry} industry. The image should be visually appealing, relevant to the topic, and suitable for use as a blog header.`,
+            contents: `Create a professional, modern featured image for this blog post titled "${title}" in the ${client.industry} industry. The image should be visually appealing, relevant to the topic, very little or no text and suitable for use as a blog header. Minimum size is 1400 wide. Create ALT text for the image.`,
             config: {
                 tools: [{
                     codeExecution: {}
@@ -852,8 +852,10 @@ app.post('/api/generate/images', async (req, res) => {
 
         res.json({
             featuredImage: {
-                description: `Featured image for ${title}`,
-                placeholder: `[Featured Image: ${title}]`
+                description: `Professional featured image for ${title} - ${client.industry} industry`,
+                placeholder: `[Featured Image: ${title}]`,
+                altText: `Featured image for blog post: ${title}`,
+                specifications: "Minimum 1400px wide, professional design, minimal text"
             },
             inBodyImages: inBodyImages
         });

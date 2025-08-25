@@ -44,7 +44,7 @@ export interface BlogContent {
 }
 
 export interface BlogImages {
-  featuredImage: { description: string; placeholder: string };
+  featuredImage: { description: string; placeholder: string; altText: string; specifications: string };
   inBodyImages: { heading: string; description: string; placeholder: string }[];
 }
 
