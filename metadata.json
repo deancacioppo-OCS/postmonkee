@@ -1,0 +1,5 @@
+{
+  "name": "Blog MONKEE",
+  "description": "An AI-powered blog content generation platform that automates the entire workflow from topic discovery to publishing, using Google Gemini and Imagen models.",
+  "requestFramePermissions": []
+}

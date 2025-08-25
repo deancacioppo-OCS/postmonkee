@@ -1,0 +1,17 @@
+{
+  "name": "blog-monkee-backend",
+  "version": "1.0.0",
+  "description": "Backend for Blog MONKEE",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^0.11.0",
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "crypto": "^1.0.1",
+    "pg": "^8.11.3"
+  }
+}
