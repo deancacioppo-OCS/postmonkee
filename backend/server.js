@@ -507,12 +507,22 @@ app.post('/api/publish/wordpress', async (req, res) => {
 
     // Check if WordPress credentials are configured
     if (!client.wp || !client.wp.url || !client.wp.username || !client.wp.appPassword) {
-        return res.status(400).json({ error: 'WordPress credentials not configured for this client' });
+        console.log('WordPress credentials check failed:', {
+            hasWp: !!client.wp,
+            hasUrl: !!client.wp?.url,
+            hasUsername: !!client.wp?.username,
+            hasAppPassword: !!client.wp?.appPassword
+        });
+        return res.status(400).json({ 
+            error: 'WordPress credentials not configured for this client',
+            details: 'Please ensure WordPress URL, username, and app password are set in client settings'
+        });
     }
 
     try {
         // Prepare WordPress API URL
         const wpApiUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/posts`;
+        console.log('WordPress API URL:', wpApiUrl);
         
         // Prepare post data
         const postData = {
@@ -523,6 +533,7 @@ app.post('/api/publish/wordpress', async (req, res) => {
             tags: tags || [],
             categories: categories || []
         };
+        console.log('WordPress post data prepared:', { title, contentLength: content.length, status: postData.status });
 
         // Create WordPress post using REST API
         const wpResponse = await fetch(wpApiUrl, {
@@ -534,10 +545,18 @@ app.post('/api/publish/wordpress', async (req, res) => {
             body: JSON.stringify(postData)
         });
 
+        console.log('WordPress API response status:', wpResponse.status);
+
         if (!wpResponse.ok) {
             const errorText = await wpResponse.text();
-            console.error('WordPress API Error:', errorText);
-            throw new Error(`WordPress publishing failed: ${wpResponse.statusText}`);
+            console.error('WordPress API Error Details:', {
+                status: wpResponse.status,
+                statusText: wpResponse.statusText,
+                errorText: errorText,
+                url: wpApiUrl,
+                username: client.wp.username
+            });
+            throw new Error(`WordPress publishing failed: ${wpResponse.status} ${wpResponse.statusText} - ${errorText}`);
         }
 
         const wpPost = await wpResponse.json();
@@ -565,6 +584,89 @@ app.post('/api/publish/wordpress', async (req, res) => {
         console.error('Error publishing to WordPress:', error);
         res.status(500).json({ 
             error: 'Failed to publish to WordPress', 
+            details: error.message 
+        });
+    }
+});
+
+// WordPress Connection Test
+app.post('/api/test/wordpress', async (req, res) => {
+    const { clientId } = req.body;
+    
+    if(!clientId) {
+        return res.status(400).json({ error: 'Client ID is required' });
+    }
+    
+    let client;
+    try {
+       const result = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
+       if (result.rows.length === 0) {
+           return res.status(404).json({ error: 'Client not found' });
+       }
+       client = result.rows[0];
+    } catch(dbError) {
+        console.error('DB Error fetching client:', dbError);
+        return res.status(500).json({ error: 'Database error' });
+    }
+
+    // Check if WordPress credentials are configured
+    if (!client.wp || !client.wp.url || !client.wp.username || !client.wp.appPassword) {
+        return res.status(400).json({ 
+            error: 'WordPress credentials not configured',
+            credentials: {
+                hasUrl: !!client.wp?.url,
+                hasUsername: !!client.wp?.username,
+                hasAppPassword: !!client.wp?.appPassword
+            }
+        });
+    }
+
+    try {
+        // Test WordPress REST API connection
+        const wpApiUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/users/me`;
+        console.log('Testing WordPress connection to:', wpApiUrl);
+        
+        const wpResponse = await fetch(wpApiUrl, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
+            }
+        });
+
+        if (!wpResponse.ok) {
+            const errorText = await wpResponse.text();
+            console.error('WordPress connection test failed:', errorText);
+            return res.status(400).json({ 
+                error: 'WordPress connection failed',
+                status: wpResponse.status,
+                details: errorText,
+                suggestions: [
+                    'Check if WordPress URL is correct and accessible',
+                    'Verify username and app password are correct',
+                    'Ensure WordPress REST API is enabled',
+                    'Check if site has security plugins blocking API access'
+                ]
+            });
+        }
+
+        const userData = await wpResponse.json();
+        
+        res.json({
+            success: true,
+            message: 'WordPress connection successful',
+            user: {
+                id: userData.id,
+                name: userData.name,
+                username: userData.username,
+                capabilities: userData.capabilities
+            },
+            siteUrl: client.wp.url
+        });
+
+    } catch (error) {
+        console.error('Error testing WordPress connection:', error);
+        res.status(500).json({ 
+            error: 'Failed to test WordPress connection', 
             details: error.message 
         });
     }

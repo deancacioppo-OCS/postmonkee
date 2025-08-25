@@ -93,3 +93,11 @@ export const generateCompleteBlog = (clientId: string): Promise<{ topic: string,
         body: JSON.stringify({ clientId }),
     }).then(res => handleResponse<{ topic: string, sources: any[], plan: BlogPlan, content: { content: string, wordCount: number, metaDescription: string, faq: { question: string, answer: string }[] }, readyToPublish: boolean }>(res));
 };
+
+export const testWordPressConnection = (clientId: string): Promise<{ success: boolean, message: string, user?: any, error?: string, details?: string, suggestions?: string[] }> => {
+    return fetch(`${BASE_URL}/api/test/wordpress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId }),
+    }).then(res => handleResponse<{ success: boolean, message: string, user?: any, error?: string, details?: string, suggestions?: string[] }>(res));
+};
