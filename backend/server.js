@@ -213,15 +213,32 @@ if (!process.env.API_KEY) {
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // Initialize OpenAI for image generation
-const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY // You'll need to set this in Render
-});
+let openai = null;
+try {
+    if (!process.env.OPENAI_API_KEY) {
+        console.warn('⚠️ OPENAI_API_KEY not set - image generation will be disabled');
+    } else {
+        openai = new OpenAI({
+            apiKey: process.env.OPENAI_API_KEY
+        });
+        console.log('✅ OpenAI initialized successfully for image generation');
+    }
+} catch (error) {
+    console.error('❌ Failed to initialize OpenAI:', error.message);
+}
 
 // --- Helper Functions ---
 
 // Helper function to generate image in parallel using DALL-E 3
 async function generateFeaturedImage(title, industry) {
     console.log(`🖼️ Starting parallel DALL-E 3 image generation for "${title}"`);
+    
+    // Check if OpenAI is available
+    if (!openai) {
+        console.warn(`⚠️ OpenAI not initialized - skipping image generation for "${title}"`);
+        console.warn('💡 Please set OPENAI_API_KEY environment variable in Render dashboard');
+        return null;
+    }
     
     try {
         // Create a detailed, professional prompt for DALL-E 3
@@ -277,9 +294,12 @@ async function generateFeaturedImage(title, industry) {
 }
 
 async function uploadImageToWordPress(imageBase64, filename, altText, client) {
+    console.log(`📤 Starting WordPress image upload: ${filename}`);
+    
     try {
         // Convert base64 to buffer
         const imageBuffer = Buffer.from(imageBase64, 'base64');
+        console.log(`📊 Image buffer size: ${imageBuffer.length} bytes`);
         
         // Create form data for WordPress media upload
         const form = new FormData();
@@ -1767,12 +1787,16 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         
         try {
             // Wait for the parallel image generation to complete
+            console.log(`⏳ Awaiting image promise...`);
             const imageData = await imagePromise;
+            console.log(`📊 Image promise resolved:`, imageData ? 'SUCCESS' : 'NULL');
             
             if (imageData && imageData.imageBase64) {
                 console.log(`✅ Image generation completed, uploading to WordPress...`);
+                console.log(`📏 Image data size: ${imageData.imageBase64.length} characters (base64)`);
                 
                 const filename = `featured-${plan.title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.jpg`;
+                console.log(`📁 Upload filename: ${filename}`);
                 
                 const uploadedImage = await uploadImageToWordPress(
                     imageData.imageBase64,
@@ -1782,13 +1806,19 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                 );
                 
                 featuredImageId = uploadedImage.id;
-                console.log(`✅ Featured image uploaded successfully: ${uploadedImage.url}`);
+                console.log(`✅ Featured image uploaded successfully: ID=${featuredImageId}, URL=${uploadedImage.url}`);
             } else {
-                console.log(`⚠️ No image data available, continuing without featured image`);
+                console.warn(`⚠️ No image data available from parallel generation`);
+                console.warn(`📊 ImageData object:`, imageData);
+                console.warn(`🔧 Possible causes: OpenAI API key missing, generation failed, or network error`);
             }
             
         } catch (imageError) {
-            console.warn('⚠️ Failed to upload featured image:', imageError.message);
+            console.error('❌ Failed to process/upload featured image:', imageError);
+            console.error('🔍 Error details:', {
+                message: imageError.message,
+                stack: imageError.stack?.split('\n').slice(0, 3).join('\n')
+            });
             // Continue without featured image rather than failing the whole process
         }
 
