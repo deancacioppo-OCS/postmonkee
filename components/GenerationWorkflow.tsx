@@ -209,6 +209,13 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
           {completeBlogError && <p className="text-red-400 text-sm mt-2">{completeBlogError}</p>}
         </div>
 
+        {/* Debug Info - Show current state */}
+        {(topic || plan || outline || content) && (
+          <div className="p-3 bg-slate-800 rounded-lg text-xs text-slate-400">
+            <p><strong>Debug:</strong> Topic: {topic ? '✓' : '✗'} | Plan: {plan ? '✓' : '✗'} | Outline: {outline ? '✓' : '✗'} | Content: {content ? '✓' : '✗'}</p>
+          </div>
+        )}
+
         <div className="text-center text-slate-500 text-sm">or follow the step-by-step process below</div>
 
         {/* Step 1: Topic Discovery */}
