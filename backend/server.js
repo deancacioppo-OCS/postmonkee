@@ -34,6 +34,25 @@ async function initializeDb() {
         "updatedAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    // Add sitemapUrl column if it doesn't exist (for existing databases)
+    try {
+      // Check if column exists first
+      const columnCheck = await client.query(`
+        SELECT column_name 
+        FROM information_schema.columns 
+        WHERE table_name = 'clients' AND column_name = 'sitemapUrl';
+      `);
+      
+      if (columnCheck.rows.length === 0) {
+        await client.query(`ALTER TABLE clients ADD COLUMN "sitemapUrl" TEXT;`);
+        console.log('✓ sitemapUrl column added');
+      } else {
+        console.log('✓ sitemapUrl column already exists');
+      }
+    } catch (alterError) {
+      console.log('Note: Could not add sitemapUrl column:', alterError.message);
+    }
      // Create enhanced sitemap_urls table
     await client.query(`
       CREATE TABLE IF NOT EXISTS sitemap_urls (
