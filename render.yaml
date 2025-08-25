@@ -31,4 +31,3 @@ databases:
   - name: blog-monkee-database
     databaseName: blog_monkee_production
     user: blog_monkee_user
-    plan: basic
