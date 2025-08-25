@@ -3,6 +3,7 @@ import cors from 'cors';
 import { GoogleGenAI, Type } from "@google/genai";
 import crypto from 'crypto';
 import pg from 'pg';
+import FormData from 'form-data';
 
 const { Pool } = pg;
 
@@ -210,6 +211,63 @@ if (!process.env.API_KEY) {
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // --- Helper Functions ---
+
+async function uploadImageToWordPress(imageBase64, filename, altText, client) {
+    try {
+        // Convert base64 to buffer
+        const imageBuffer = Buffer.from(imageBase64, 'base64');
+        
+        // Create form data for WordPress media upload
+        const form = new FormData();
+        form.append('file', imageBuffer, {
+            filename: filename,
+            contentType: 'image/jpeg' // Assuming JPEG, could be dynamic
+        });
+        
+        // Upload to WordPress media library
+        const uploadUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/media`;
+        const uploadResponse = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`,
+                ...form.getHeaders()
+            },
+            body: form
+        });
+        
+        if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text();
+            throw new Error(`WordPress media upload failed: ${uploadResponse.status} - ${errorText}`);
+        }
+        
+        const mediaData = await uploadResponse.json();
+        
+        // Update ALT text if provided
+        if (altText) {
+            const updateUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/media/${mediaData.id}`;
+            await fetch(updateUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
+                },
+                body: JSON.stringify({
+                    alt_text: altText
+                })
+            });
+        }
+        
+        return {
+            id: mediaData.id,
+            url: mediaData.source_url,
+            altText: altText
+        };
+        
+    } catch (error) {
+        console.error('Error uploading image to WordPress:', error);
+        throw error;
+    }
+}
 
 function validateInternalLinks(content, validLinks) {
     if (!validLinks.length) return { valid: true, message: 'No internal links to validate' };
@@ -817,14 +875,29 @@ app.post('/api/generate/images', async (req, res) => {
     }
 
     try {
-        // Generate featured image
+        // Generate featured image with Gemini's image generation
         const featuredImageResponse = await ai.models.generateContent({
             model: "gemini-2.5-flash",
-            contents: `Create a professional, modern featured image for this blog post titled "${title}" in the ${client.industry} industry. The image should be visually appealing, relevant to the topic, very little or no text and suitable for use as a blog header. Minimum size is 1400 wide. Create ALT text for the image.`,
+            contents: `Generate a professional, modern featured image for this blog post titled "${title}" in the ${client.industry} industry. The image should be:
+            - Visually appealing and relevant to the topic
+            - Professional quality suitable for a blog header
+            - Minimum 1400px wide, landscape orientation
+            - Very little or no text overlay
+            - Clean, modern design
+            - Appropriate for ${client.industry} industry
+            
+            Generate the actual image, not just a description.`,
             config: {
-                tools: [{
-                    codeExecution: {}
-                }]
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        imageBase64: { type: Type.STRING, description: 'Base64 encoded image data' },
+                        altText: { type: Type.STRING, description: 'SEO-friendly ALT text for the image' },
+                        description: { type: Type.STRING, description: 'Brief description of the image' }
+                    },
+                    required: ["imageBase64", "altText", "description"]
+                }
             }
         });
 
@@ -850,12 +923,15 @@ app.post('/api/generate/images', async (req, res) => {
             }
         }
 
+        // Parse featured image response
+        const featuredImageData = JSON.parse(featuredImageResponse.text);
+        
         res.json({
             featuredImage: {
-                description: `Professional featured image for ${title} - ${client.industry} industry`,
-                placeholder: `[Featured Image: ${title}]`,
-                altText: `Featured image for blog post: ${title}`,
-                specifications: "Minimum 1400px wide, professional design, minimal text"
+                imageBase64: featuredImageData.imageBase64,
+                altText: featuredImageData.altText,
+                description: featuredImageData.description,
+                specifications: "1400px+ wide, professional design, minimal text"
             },
             inBodyImages: inBodyImages
         });
@@ -1637,7 +1713,55 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         // Validate internal links in lucky blog content
         validateInternalLinks(contentData.content, internalLinks);
 
-        // Step 5: Auto-Publish to WordPress as LIVE
+        // Step 5: Generate and Upload Featured Image
+        console.log(`🖼️ Generating featured image for "${plan.title}"`);
+        let featuredImageId = null;
+        
+        try {
+            const imageResponse = await ai.models.generateContent({
+                model: "gemini-2.5-flash",
+                contents: `Generate a professional, modern featured image for this blog post titled "${plan.title}" in the ${client.industry} industry. The image should be:
+                - Visually appealing and relevant to the topic
+                - Professional quality suitable for a blog header
+                - Minimum 1400px wide, landscape orientation
+                - Very little or no text overlay
+                - Clean, modern design
+                - Appropriate for ${client.industry} industry
+                
+                Generate the actual image, not just a description.`,
+                config: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            imageBase64: { type: Type.STRING, description: 'Base64 encoded image data' },
+                            altText: { type: Type.STRING, description: 'SEO-friendly ALT text for the image' },
+                            description: { type: Type.STRING, description: 'Brief description of the image' }
+                        },
+                        required: ["imageBase64", "altText", "description"]
+                    }
+                }
+            });
+            
+            const imageData = JSON.parse(imageResponse.text);
+            const filename = `featured-${plan.title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.jpg`;
+            
+            const uploadedImage = await uploadImageToWordPress(
+                imageData.imageBase64,
+                filename,
+                imageData.altText,
+                client
+            );
+            
+            featuredImageId = uploadedImage.id;
+            console.log(`✅ Featured image uploaded successfully: ${uploadedImage.url}`);
+            
+        } catch (imageError) {
+            console.warn('⚠️ Failed to generate/upload featured image:', imageError.message);
+            // Continue without featured image rather than failing the whole process
+        }
+
+        // Step 6: Auto-Publish to WordPress as LIVE
         console.log(`🚀 Auto-publishing "${plan.title}" to WordPress as LIVE`);
         
         // Handle tags - convert tag names to IDs or create new tags
@@ -1691,6 +1815,12 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             status: 'publish', // LIVE instead of draft!
             tags: tagIds
         };
+        
+        // Add featured image if uploaded successfully
+        if (featuredImageId) {
+            postData.featured_media = featuredImageId;
+            console.log(`🖼️ Setting featured image ID: ${featuredImageId}`);
+        }
         
         const wpApiUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/posts`;
         
