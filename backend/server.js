@@ -1351,5 +1351,6 @@ app.post('/api/generate/complete-blog', async (req, res) => {
 // Start server
 app.listen(port, () => {
   console.log(`Blog MONKEE backend listening at http://localhost:${port}`);
+  console.log('🔄 Database migration version: v2.0 - Enhanced crawling support');
   initializeDb();
 });
