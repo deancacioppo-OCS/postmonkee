@@ -16,7 +16,6 @@ services:
   - type: web
     name: blog-monkee-frontend
     runtime: static
-    plan: starter
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
     envVars:
@@ -28,4 +27,3 @@ databases:
   - name: blog-monkee-db
     databaseName: blog_monkee
     user: blog_monkee_user
-    plan: starter
