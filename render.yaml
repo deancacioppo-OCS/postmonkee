@@ -3,7 +3,7 @@ services:
   - type: web
     name: blog-monkee-backend
     runtime: node
-    plan: starter
+    plan: standard
     rootDir: backend
     buildCommand: npm install
     startCommand: npm start
@@ -27,3 +27,4 @@ databases:
   - name: blog-monkee-db
     databaseName: blog_monkee
     user: blog_monkee_user
+    plan: basic
