@@ -221,7 +221,7 @@ const WebsiteCrawlTestButton = ({ clientId, websiteUrl }) => {
     return (
         <div className="p-3 bg-slate-700 rounded-md mt-2">
             <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-300">Test AI Website Crawling</span>
+                <span className="text-sm font-medium text-slate-300">AI Website Crawling</span>
                 <button
                     type="button"
                     onClick={handleTest}
@@ -229,7 +229,7 @@ const WebsiteCrawlTestButton = ({ clientId, websiteUrl }) => {
                     className="bg-purple-500 hover:bg-purple-600 text-white text-sm py-1 px-3 rounded transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                     {testing && <Spinner small />}
-                    {testing ? 'Crawling...' : 'Test Crawl'}
+                    {testing ? 'Crawling...' : 'Crawl Website'}
                 </button>
             </div>
             
