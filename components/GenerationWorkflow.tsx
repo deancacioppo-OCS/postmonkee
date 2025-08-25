@@ -190,6 +190,27 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
       <p className="text-cyan-400 font-medium mb-4">{client.name}</p>
 
       <div className="space-y-6">
+        {/* Quick Action: Complete Blog Generation */}
+        <div className="p-4 bg-gradient-to-r from-cyan-900/20 to-blue-900/20 rounded-lg border border-cyan-700/30">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-medium text-cyan-300">⚡ Quick Generate</h3>
+              <p className="text-sm text-slate-400">Generate complete blog post in one click</p>
+            </div>
+            <button
+              onClick={handleGenerateCompleteBlog}
+              disabled={completeBlogLoading}
+              className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {completeBlogLoading && <Spinner small />}
+              {completeBlogLoading ? 'Generating...' : 'Generate Complete Blog'}
+            </button>
+          </div>
+          {completeBlogError && <p className="text-red-400 text-sm mt-2">{completeBlogError}</p>}
+        </div>
+
+        <div className="text-center text-slate-500 text-sm">or follow the step-by-step process below</div>
+
         {/* Step 1: Topic Discovery */}
         <WorkflowStep
           title="Step 1: Topic Discovery"
@@ -198,7 +219,7 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
           isLoading={topicLoading}
           isDone={!!topic}
           error={topicError}
-          isActionDisabled={topicLoading || planLoading}
+          isActionDisabled={topicLoading || completeBlogLoading}
         >
           {topic && (
             <div className="mt-2 p-3 bg-slate-900 rounded-md">
@@ -225,7 +246,7 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
           isLoading={planLoading}
           isDone={!!plan}
           error={planError}
-          isActionDisabled={!topic || planLoading || topicLoading}
+          isActionDisabled={!topic || planLoading || completeBlogLoading}
         >
             {plan && (
                 <div className="mt-2 p-3 bg-slate-900 rounded-md space-y-2">
@@ -236,6 +257,119 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
                         <div className="flex flex-wrap gap-2 mt-1">
                             {plan.keywords.map(kw => <span key={kw} className="bg-slate-700 text-cyan-300 text-xs font-medium px-2.5 py-0.5 rounded-full">{kw}</span>)}
                         </div>
+                    </div>
+                </div>
+            )}
+        </WorkflowStep>
+
+        {/* Step 3: Outline Creation */}
+        <WorkflowStep
+          title="Step 3: Outline Creation"
+          onAction={handleCreateOutline}
+          actionText="Create Outline"
+          isLoading={outlineLoading}
+          isDone={!!outline}
+          error={outlineError}
+          isActionDisabled={!plan || outlineLoading || completeBlogLoading}
+        >
+            {outline && (
+                <div className="mt-2 p-3 bg-slate-900 rounded-md space-y-2">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <span className="text-slate-400">Word Count:</span> <span className="text-cyan-300">{outline.estimatedWordCount}</span>
+                            <span className="ml-4 text-slate-400">SEO Score:</span> <span className="text-green-400">{outline.seoScore}/100</span>
+                        </div>
+                    </div>
+                    <pre className="text-sm text-slate-300 whitespace-pre-wrap">{outline.outline}</pre>
+                </div>
+            )}
+        </WorkflowStep>
+
+        {/* Step 4: Content Generation */}
+        <WorkflowStep
+          title="Step 4: Content Generation"
+          onAction={handleGenerateContent}
+          actionText="Generate Content"
+          isLoading={contentLoading}
+          isDone={!!content}
+          error={contentError}
+          isActionDisabled={!outline || contentLoading || completeBlogLoading}
+        >
+            {content && (
+                <div className="mt-2 p-3 bg-slate-900 rounded-md space-y-2">
+                    <div className="flex justify-between items-center">
+                        <div>
+                            <span className="text-slate-400">Words:</span> <span className="text-cyan-300">{content.wordCount}</span>
+                            <span className="ml-4 text-slate-400">Meta Description:</span> <span className="text-green-400">{content.metaDescription.length} chars</span>
+                        </div>
+                    </div>
+                    <div className="max-h-40 overflow-y-auto">
+                        <div className="text-sm text-slate-300" dangerouslySetInnerHTML={{ __html: content.content.substring(0, 500) + '...' }} />
+                    </div>
+                    {content.faq && content.faq.length > 0 && (
+                        <div>
+                            <p className="text-slate-400 text-sm">FAQ ({content.faq.length} questions)</p>
+                        </div>
+                    )}
+                </div>
+            )}
+        </WorkflowStep>
+
+        {/* Step 5: Image Generation */}
+        <WorkflowStep
+          title="Step 5: Image Generation"
+          onAction={handleGenerateImages}
+          actionText="Generate Images"
+          isLoading={imagesLoading}
+          isDone={!!images}
+          error={imagesError}
+          isActionDisabled={!plan || imagesLoading || completeBlogLoading}
+        >
+            {images && (
+                <div className="mt-2 p-3 bg-slate-900 rounded-md space-y-2">
+                    <div>
+                        <p className="text-slate-400 text-sm">Featured Image:</p>
+                        <p className="text-cyan-300 text-sm">{images.featuredImage.description}</p>
+                    </div>
+                    {images.inBodyImages.length > 0 && (
+                        <div>
+                            <p className="text-slate-400 text-sm">In-body Images ({images.inBodyImages.length}):</p>
+                            <ul className="text-cyan-300 text-sm list-disc list-inside">
+                                {images.inBodyImages.map((img, index) => (
+                                    <li key={index}>{img.heading}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </div>
+            )}
+        </WorkflowStep>
+
+        {/* Step 6: WordPress Publishing */}
+        <WorkflowStep
+          title="Step 6: Publish to WordPress"
+          onAction={handlePublishToWordPress}
+          actionText="Publish to WordPress"
+          isLoading={publishLoading}
+          isDone={!!publishResult}
+          error={publishError}
+          isActionDisabled={!content || publishLoading || completeBlogLoading}
+        >
+            {publishResult && (
+                <div className="mt-2 p-3 bg-slate-900 rounded-md space-y-2">
+                    <div className="flex items-center gap-2">
+                        <span className="text-green-400">✓</span>
+                        <span className="text-green-300">{publishResult.message}</span>
+                    </div>
+                    <div className="space-y-1 text-sm">
+                        <p><span className="text-slate-400">Status:</span> <span className="text-cyan-300">{publishResult.status}</span></p>
+                        <p><span className="text-slate-400">Post ID:</span> <span className="text-cyan-300">{publishResult.postId}</span></p>
+                        {publishResult.postUrl && (
+                            <p><a href={publishResult.postUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">View Post</a></p>
+                        )}
+                        {publishResult.editUrl && (
+                            <p><a href={publishResult.editUrl} target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:underline">Edit in WordPress</a></p>
+                        )}
                     </div>
                 </div>
             )}
