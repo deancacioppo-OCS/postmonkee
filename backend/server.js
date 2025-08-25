@@ -524,16 +524,58 @@ app.post('/api/publish/wordpress', async (req, res) => {
         const wpApiUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/posts`;
         console.log('WordPress API URL:', wpApiUrl);
         
+        // Handle tags - convert tag names to IDs or create new tags
+        let tagIds = [];
+        if (tags && tags.length > 0) {
+            for (const tagName of tags) {
+                try {
+                    // First, try to find existing tag
+                    const tagSearchUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/tags?search=${encodeURIComponent(tagName)}`;
+                    const tagSearchResponse = await fetch(tagSearchUrl, {
+                        headers: {
+                            'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
+                        }
+                    });
+                    
+                    if (tagSearchResponse.ok) {
+                        const existingTags = await tagSearchResponse.json();
+                        const existingTag = existingTags.find(tag => tag.name.toLowerCase() === tagName.toLowerCase());
+                        
+                        if (existingTag) {
+                            tagIds.push(existingTag.id);
+                        } else {
+                            // Create new tag
+                            const tagCreateUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/tags`;
+                            const tagCreateResponse = await fetch(tagCreateUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
+                                },
+                                body: JSON.stringify({ name: tagName })
+                            });
+                            
+                            if (tagCreateResponse.ok) {
+                                const newTag = await tagCreateResponse.json();
+                                tagIds.push(newTag.id);
+                            }
+                        }
+                    }
+                } catch (tagError) {
+                    console.log(`Failed to process tag "${tagName}":`, tagError.message);
+                }
+            }
+        }
+
         // Prepare post data
         const postData = {
             title: title,
             content: content,
             excerpt: metaDescription || '',
             status: 'draft', // Start as draft for review
-            tags: tags || [],
-            categories: categories || []
+            tags: tagIds // Use tag IDs
         };
-        console.log('WordPress post data prepared:', { title, contentLength: content.length, status: postData.status });
+        console.log('WordPress post data prepared:', { title, contentLength: content.length, status: postData.status, tagIds });
 
         // Create WordPress post using REST API
         const wpResponse = await fetch(wpApiUrl, {
