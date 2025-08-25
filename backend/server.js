@@ -1579,6 +1579,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         console.log(`🍀 LUCKY MODE: Generating and auto-publishing blog for ${client.name}`);
         
         // Step 1: Generate Topic
+        console.log(`📝 Step 1: Starting topic generation...`);
         const topicPrompt = `Using Google Search, find one current and highly relevant trending topic, news story, or popular question related to the '${client.industry}' industry. Provide only the topic name or headline. Do not add any extra formatting or quotation marks.`;
         
         const topicResponse = await ai.models.generateContent({
@@ -1713,11 +1714,17 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         // Validate internal links in lucky blog content
         validateInternalLinks(contentData.content, internalLinks);
 
-        // Step 5: Generate and Upload Featured Image
-        console.log(`🖼️ Generating featured image for "${plan.title}"`);
+        // Step 5: Generate and Upload Featured Image (TEMPORARILY DISABLED)
+        console.log(`🖼️ Skipping featured image generation (debugging mode)`);
         let featuredImageId = null;
         
+        // TODO: Re-enable image generation once we confirm it works
+        // Currently disabled to prevent Lucky mode from hanging
+        
+        /*
         try {
+            console.log(`🖼️ Generating featured image for "${plan.title}"`);
+            
             const imageResponse = await ai.models.generateContent({
                 model: "gemini-2.5-flash",
                 contents: `Generate a professional, modern featured image for this blog post titled "${plan.title}" in the ${client.industry} industry. The image should be:
@@ -1760,6 +1767,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             console.warn('⚠️ Failed to generate/upload featured image:', imageError.message);
             // Continue without featured image rather than failing the whole process
         }
+        */
 
         // Step 6: Create WordPress Draft
         console.log(`📝 Creating WordPress draft for "${plan.title}"`);
