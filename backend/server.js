@@ -209,6 +209,37 @@ if (!process.env.API_KEY) {
 }
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
+// --- Helper Functions ---
+
+function validateInternalLinks(content, validLinks) {
+    if (!validLinks.length) return { valid: true, message: 'No internal links to validate' };
+    
+    const validUrls = validLinks.map(link => link.url);
+    const linkMatches = content.match(/href="([^"]+)"/g) || [];
+    const extractedUrls = linkMatches.map(match => match.replace(/href="([^"]+)"/, '$1'));
+    
+    const invalidUrls = extractedUrls.filter(url => 
+        url.startsWith('http') && // Only check external URLs
+        !validUrls.includes(url) && 
+        !url.includes('mailto:') && // Ignore email links
+        !url.includes('tel:') // Ignore phone links
+    );
+    
+    if (invalidUrls.length > 0) {
+        console.warn('⚠️ Generated content contains invalid internal URLs:', invalidUrls);
+        console.log('Valid URLs were:', validUrls);
+        return { 
+            valid: false, 
+            invalidUrls: invalidUrls,
+            validUrls: validUrls,
+            message: `Found ${invalidUrls.length} invalid URLs` 
+        };
+    } else {
+        console.log('✅ All internal links in generated content are valid');
+        return { valid: true, message: 'All internal links are valid' };
+    }
+}
+
 // --- Web Crawling Functions ---
 
 async function crawlWebsiteForClient(clientId, websiteUrl) {
@@ -688,9 +719,11 @@ app.post('/api/generate/content', async (req, res) => {
 
     try {
         const internalLinksContext = internalLinks.length > 0 
-            ? `\nAvailable Internal Links (use 5-8 contextually relevant ones with natural anchor text):
-               ${internalLinks.map(link => `- ${link.title}: ${link.url} (Keywords: ${link.keywords || 'N/A'})`).join('\n')}`
-            : '\nNo internal links available yet.';
+            ? `\nAvailable Internal Links - USE EXACT URLs ONLY:
+               ${internalLinks.map(link => `- URL: ${link.url} | Title: "${link.title}" | Category: ${link.category || 'general'} | Keywords: ${link.keywords || 'N/A'}`).join('\n')}
+               
+               IMPORTANT: You MUST use these exact URLs. Do not modify, create, or guess URLs.`
+            : '\nNo internal links available yet - do not create any internal links.';
 
         const prompt = `
             You are an expert content writer for a company in the '${client.industry}' industry.
@@ -713,9 +746,12 @@ app.post('/api/generate/content', async (req, res) => {
             - Make it engaging and valuable for readers
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
-            - MUST include 5-8 contextual internal links using natural anchor text
+            - MUST include 5-8 contextual internal links using ONLY the exact URLs provided above
             - Internal links should flow naturally within sentences
             - Use varied anchor text that matches the content context
+            - CRITICAL: Only use the exact URLs listed in the Available Internal Links section
+            - DO NOT create or modify URLs - use them exactly as provided
+            - Format links as: <a href="EXACT_URL_FROM_LIST">anchor text</a>
             - Minimum 2 internal links, average 5-8 per article
         `;
         
@@ -748,6 +784,10 @@ app.post('/api/generate/content', async (req, res) => {
         });
         
         const contentData = JSON.parse(response.text);
+        
+        // Validate internal links in generated content
+        validateInternalLinks(contentData.content, internalLinks);
+        
         res.json(contentData);
 
     } catch (error) {
@@ -1345,9 +1385,11 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         }
 
         const internalLinksContext = internalLinks.length > 0 
-            ? `\nAvailable Internal Links (use 5-8 contextually relevant ones with natural anchor text):
-               ${internalLinks.map(link => `- ${link.title}: ${link.url} (Keywords: ${link.keywords || 'N/A'})`).join('\n')}`
-            : '\nNo internal links available yet.';
+            ? `\nAvailable Internal Links - USE EXACT URLs ONLY:
+               ${internalLinks.map(link => `- URL: ${link.url} | Title: "${link.title}" | Category: ${link.category || 'general'} | Keywords: ${link.keywords || 'N/A'}`).join('\n')}
+               
+               IMPORTANT: You MUST use these exact URLs. Do not modify, create, or guess URLs.`
+            : '\nNo internal links available yet - do not create any internal links.';
 
         // Step 3: Generate Complete Blog Post
         const contentPrompt = `
@@ -1370,9 +1412,12 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             - Make it engaging and valuable for readers
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
-            - MUST include 5-8 contextual internal links using natural anchor text
+            - MUST include 5-8 contextual internal links using ONLY the exact URLs provided above
             - Internal links should flow naturally within sentences
             - Use varied anchor text that matches the content context
+            - CRITICAL: Only use the exact URLs listed in the Available Internal Links section
+            - DO NOT create or modify URLs - use them exactly as provided
+            - Format links as: <a href="EXACT_URL_FROM_LIST">anchor text</a>
             - Minimum 2 internal links, average 5-8 per article
         `;
         
@@ -1405,6 +1450,9 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         });
         
         const contentData = JSON.parse(contentResponse.text);
+
+        // Validate internal links in complete blog content
+        validateInternalLinks(contentData.content, internalLinks);
 
         // Return complete blog post data
         res.json({
@@ -1529,9 +1577,11 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         }
 
         const internalLinksContext = internalLinks.length > 0 
-            ? `\nAvailable Internal Links (use 5-8 contextually relevant ones with natural anchor text):
-               ${internalLinks.map(link => `- ${link.title}: ${link.url} (Keywords: ${link.keywords || 'N/A'})`).join('\n')}`
-            : '\nNo internal links available yet.';
+            ? `\nAvailable Internal Links - USE EXACT URLs ONLY:
+               ${internalLinks.map(link => `- URL: ${link.url} | Title: "${link.title}" | Category: ${link.category || 'general'} | Keywords: ${link.keywords || 'N/A'}`).join('\n')}
+               
+               IMPORTANT: You MUST use these exact URLs. Do not modify, create, or guess URLs.`
+            : '\nNo internal links available yet - do not create any internal links.';
 
         // Step 4: Generate Complete Blog Content
         const contentPrompt = `
@@ -1554,9 +1604,12 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             - Make it engaging and valuable for readers
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
-            - MUST include 5-8 contextual internal links using natural anchor text
+            - MUST include 5-8 contextual internal links using ONLY the exact URLs provided above
             - Internal links should flow naturally within sentences
             - Use varied anchor text that matches the content context
+            - CRITICAL: Only use the exact URLs listed in the Available Internal Links section
+            - DO NOT create or modify URLs - use them exactly as provided
+            - Format links as: <a href="EXACT_URL_FROM_LIST">anchor text</a>
             - Minimum 2 internal links, average 5-8 per article
         `;
         
@@ -1578,6 +1631,9 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         });
         
         const contentData = JSON.parse(contentResponse.text);
+
+        // Validate internal links in lucky blog content
+        validateInternalLinks(contentData.content, internalLinks);
 
         // Step 5: Auto-Publish to WordPress as LIVE
         console.log(`🚀 Auto-publishing "${plan.title}" to WordPress as LIVE`);
