@@ -1421,6 +1421,295 @@ app.post('/api/generate/complete-blog', async (req, res) => {
     }
 });
 
+// 8. "I'm Feelin' Lucky" - Generate and Auto-Publish Blog
+app.post('/api/generate/lucky-blog', async (req, res) => {
+    const { clientId } = req.body;
+    
+    if(!clientId) {
+        return res.status(400).json({ error: 'Client ID is required' });
+    }
+    
+    let client;
+    try {
+       const result = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
+       if (result.rows.length === 0) {
+           return res.status(404).json({ error: 'Client not found' });
+       }
+       client = result.rows[0];
+    } catch(dbError) {
+        console.error('DB Error fetching client:', dbError);
+        return res.status(500).json({ error: 'Database error' });
+    }
+
+    // Check if WordPress credentials are configured
+    if (!client.wp || !client.wp.url || !client.wp.username || !client.wp.appPassword) {
+        return res.status(400).json({ 
+            error: 'WordPress credentials not configured for this client',
+            details: 'Please configure WordPress URL, username, and app password in client settings to use Lucky mode'
+        });
+    }
+
+    try {
+        console.log(`🍀 LUCKY MODE: Generating and auto-publishing blog for ${client.name}`);
+        
+        // Step 1: Generate Topic
+        const topicPrompt = `Using Google Search, find one current and highly relevant trending topic, news story, or popular question related to the '${client.industry}' industry. Provide only the topic name or headline. Do not add any extra formatting or quotation marks.`;
+        
+        const topicResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: topicPrompt,
+            config: {
+                tools: [{googleSearch: {}}],
+            },
+        });
+        
+        const topic = topicResponse.text.trim();
+        const sources = topicResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+
+        // Step 2: Generate Plan
+        const planPrompt = `
+            You are an expert content strategist for a company in the '${client.industry}' industry.
+            Company's unique value proposition: '${client.uniqueValueProp}'
+            Company's brand voice: '${client.brandVoice}'
+            Company's content strategy: '${client.contentStrategy}'
+            We want to write a blog post about the following topic: '${topic}'
+
+            Please generate a compelling, SEO-friendly blog post title, a unique angle for the article, and a list of 5-7 relevant SEO keywords.
+        `;
+        
+        const planResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: planPrompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        title: { type: Type.STRING, description: 'The SEO-friendly blog post title.' },
+                        angle: { type: Type.STRING, description: 'The unique angle for the article.' },
+                        keywords: {
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING },
+                            description: 'A list of 5-7 relevant SEO keywords.'
+                        }
+                    },
+                    required: ["title", "angle", "keywords"]
+                },
+            },
+        });
+        
+        const plan = JSON.parse(planResponse.text);
+
+        // Step 3: Get internal links
+        let internalLinks = [];
+        try {
+            const linkResult = await pool.query(
+                'SELECT url, title, description, category, keywords FROM sitemap_urls WHERE client_id = $1 ORDER BY "createdAt" DESC LIMIT 20',
+                [clientId]
+            );
+            internalLinks = linkResult.rows;
+            
+            if (internalLinks.length === 0) {
+                const allLinksResult = await pool.query(
+                    'SELECT url FROM sitemap_urls WHERE client_id = $1 ORDER BY "createdAt" DESC LIMIT 10',
+                    [clientId]
+                );
+                if (allLinksResult.rows.length > 0) {
+                    internalLinks = allLinksResult.rows.map(row => ({
+                        url: row.url,
+                        title: `Page: ${row.url.split('/').pop() || 'Home'}`,
+                        description: 'Internal page',
+                        category: 'general',
+                        keywords: 'related content'
+                    }));
+                }
+            }
+        } catch (linkError) {
+            console.log('Failed to fetch internal links for lucky blog:', linkError.message);
+        }
+
+        const internalLinksContext = internalLinks.length > 0 
+            ? `\nAvailable Internal Links (use 5-8 contextually relevant ones with natural anchor text):
+               ${internalLinks.map(link => `- ${link.title}: ${link.url} (Keywords: ${link.keywords || 'N/A'})`).join('\n')}`
+            : '\nNo internal links available yet.';
+
+        // Step 4: Generate Complete Blog Content
+        const contentPrompt = `
+            You are an expert content writer for a company in the '${client.industry}' industry.
+            Company's unique value proposition: '${client.uniqueValueProp}'
+            Company's brand voice: '${client.brandVoice}'
+            Company's content strategy: '${client.contentStrategy}'
+            
+            Write a complete blog post based on:
+            Topic: ${topic}
+            Title: ${plan.title}
+            Angle: ${plan.angle}
+            Target Keywords: ${plan.keywords.join(', ')}
+            ${internalLinksContext}
+            
+            Requirements:
+            - Write in HTML format with proper headings (h1, h2, h3)
+            - Include the target keywords naturally throughout
+            - Write in the company's brand voice
+            - Make it engaging and valuable for readers
+            - Include a compelling introduction and strong conclusion
+            - Aim for 1500-2500 words
+            - MUST include 5-8 contextual internal links using natural anchor text
+            - Internal links should flow naturally within sentences
+            - Use varied anchor text that matches the content context
+            - Minimum 2 internal links, average 5-8 per article
+        `;
+        
+        const contentResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: contentPrompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        content: { type: Type.STRING, description: 'Complete blog post content in HTML format.' },
+                        wordCount: { type: Type.NUMBER, description: 'Actual word count of the content.' },
+                        metaDescription: { type: Type.STRING, description: 'SEO meta description (150-160 characters).' }
+                    },
+                    required: ["content", "wordCount", "metaDescription"]
+                },
+            },
+        });
+        
+        const contentData = JSON.parse(contentResponse.text);
+
+        // Step 5: Auto-Publish to WordPress as LIVE
+        console.log(`🚀 Auto-publishing "${plan.title}" to WordPress as LIVE`);
+        
+        // Handle tags - convert tag names to IDs or create new tags
+        let tagIds = [];
+        if (plan.keywords && plan.keywords.length > 0) {
+            for (const tagName of plan.keywords) {
+                try {
+                    // First, try to find existing tag
+                    const tagSearchUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/tags?search=${encodeURIComponent(tagName)}`;
+                    const tagSearchResponse = await fetch(tagSearchUrl, {
+                        headers: {
+                            'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
+                        }
+                    });
+                    
+                    if (tagSearchResponse.ok) {
+                        const existingTags = await tagSearchResponse.json();
+                        const existingTag = existingTags.find(tag => tag.name.toLowerCase() === tagName.toLowerCase());
+                        
+                        if (existingTag) {
+                            tagIds.push(existingTag.id);
+                        } else {
+                            // Create new tag
+                            const tagCreateUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/tags`;
+                            const tagCreateResponse = await fetch(tagCreateUrl, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
+                                },
+                                body: JSON.stringify({ name: tagName })
+                            });
+                            
+                            if (tagCreateResponse.ok) {
+                                const newTag = await tagCreateResponse.json();
+                                tagIds.push(newTag.id);
+                            }
+                        }
+                    }
+                } catch (tagError) {
+                    console.log(`Failed to process tag "${tagName}":`, tagError.message);
+                }
+            }
+        }
+
+        // Prepare post data for LIVE publication
+        const postData = {
+            title: plan.title,
+            content: contentData.content,
+            excerpt: contentData.metaDescription || '',
+            status: 'publish', // LIVE instead of draft!
+            tags: tagIds
+        };
+        
+        const wpApiUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/posts`;
+        
+        const wpResponse = await fetch(wpApiUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
+            },
+            body: JSON.stringify(postData)
+        });
+
+        if (!wpResponse.ok) {
+            const errorText = await wpResponse.text();
+            console.error('WordPress publishing failed:', errorText);
+            throw new Error(`WordPress publishing failed: ${wpResponse.status} ${wpResponse.statusText}`);
+        }
+
+        const wpPost = await wpResponse.json();
+
+        // Store the published topic to avoid duplicates
+        try {
+            await pool.query(
+                'INSERT INTO used_topics (client_id, topic) VALUES ($1, $2)',
+                [clientId, plan.title]
+            );
+        } catch (topicError) {
+            console.log('Topic already exists or error storing:', topicError.message);
+        }
+
+        // Add published blog to internal links database
+        try {
+            await pool.query(
+                'INSERT INTO sitemap_urls (client_id, url, title, description, category, last_modified) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT (client_id, url) DO UPDATE SET title = $3, description = $4, category = $5, last_modified = NOW()',
+                [
+                    clientId, 
+                    wpPost.link,
+                    plan.title,
+                    contentData.metaDescription || 'Generated blog post',
+                    'blog'
+                ]
+            );
+            console.log(`✅ Added published blog to internal links database: ${plan.title}`);
+        } catch (linkError) {
+            console.log('Failed to add published blog to internal links:', linkError.message);
+        }
+
+        console.log(`🎉 LUCKY SUCCESS: "${plan.title}" published LIVE at ${wpPost.link}`);
+
+        // Return complete success data
+        res.json({
+            success: true,
+            topic: topic,
+            sources: sources,
+            plan: plan,
+            content: contentData,
+            publishResult: {
+                success: true,
+                postId: wpPost.id,
+                postUrl: wpPost.link,
+                editUrl: wpPost.link ? wpPost.link.replace(/\/$/, '') + '/wp-admin/post.php?post=' + wpPost.id + '&action=edit' : null,
+                status: 'published',
+                message: '🍀 Lucky! Blog post generated and published LIVE successfully!'
+            },
+            isLucky: true
+        });
+
+    } catch (error) {
+        console.error('🍀 LUCKY MODE ERROR:', error);
+        res.status(500).json({ 
+            error: 'Lucky mode failed', 
+            details: error.message,
+            isLucky: true
+        });
+    }
+});
+
 
 // Start server
 app.listen(port, () => {

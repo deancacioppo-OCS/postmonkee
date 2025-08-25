@@ -158,15 +158,20 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
     setCompleteBlogError(null);
     resetAllSteps();
     try {
-        const result = await api.generateCompleteBlog(client.id);
+        const result = await api.generateLuckyBlog(client.id);
         setTopic(result.topic);
         setSources(result.sources);
         setPlan(result.plan);
         setContent(result.content);
+        setPublishResult(result.publishResult);
         // Auto-set outline as "Generated" since it's included in the complete generation
         setOutline({ outline: "Complete outline generated", estimatedWordCount: result.content.wordCount, seoScore: 85 });
+        // Show success message for lucky mode
+        if (result.isLucky && result.publishResult.success) {
+            console.log('🍀 Lucky Success! Blog published live:', result.publishResult.postUrl);
+        }
     } catch (err) {
-        setCompleteBlogError('Failed to generate complete blog. Please try again.');
+        setCompleteBlogError('🍀 Lucky mode failed. Please check WordPress credentials and try again.');
     } finally {
         setCompleteBlogLoading(false);
     }
@@ -194,16 +199,16 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
         <div className="p-4 bg-gradient-to-r from-cyan-900/20 to-blue-900/20 rounded-lg border border-cyan-700/30">
           <div className="flex justify-between items-center">
             <div>
-              <h3 className="text-lg font-medium text-cyan-300">⚡ Quick Generate</h3>
-              <p className="text-sm text-slate-400">Generate complete blog post in one click</p>
+              <h3 className="text-lg font-medium text-green-300">🍀 I'm Feelin' Lucky</h3>
+              <p className="text-sm text-slate-400">Generate and auto-publish complete blog post live!</p>
             </div>
             <button
               onClick={handleGenerateCompleteBlog}
               disabled={completeBlogLoading}
-              className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
             >
               {completeBlogLoading && <Spinner small />}
-              {completeBlogLoading ? 'Generating...' : 'Generate Complete Blog'}
+              {completeBlogLoading ? 'Publishing...' : "I'm Feelin' Lucky 🍀"}
             </button>
           </div>
           {completeBlogError && <p className="text-red-400 text-sm mt-2">{completeBlogError}</p>}
