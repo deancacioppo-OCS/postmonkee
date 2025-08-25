@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import pg from 'pg';
 import FormData from 'form-data';
 import OpenAI from 'openai';
+import sharp from 'sharp';
 
 const { Pool } = pg;
 
@@ -226,13 +227,13 @@ async function generateFeaturedImage(title, industry) {
         // Create a detailed, professional prompt for DALL-E 3
         const imagePrompt = `Create a professional, modern featured image for a blog post titled "${title}" in the ${industry} industry. The image should be visually appealing, relevant to the topic, high quality, suitable for a blog header, landscape orientation, clean design, minimal or no text overlay, appropriate for ${industry} industry content, engaging and professional.`;
 
-        // Generate image using OpenAI DALL-E 3
+        // Generate image using OpenAI DALL-E 3 (standard size)
         const response = await openai.images.generate({
             model: "dall-e-3",
             prompt: imagePrompt,
             n: 1,
-            size: "1792x1024", // Landscape format, high quality
-            quality: "hd",
+            size: "1024x1024", // Standard size, will be resized to landscape
+            quality: "standard", // Standard quality for faster generation
             response_format: "b64_json"
         });
         
@@ -240,7 +241,22 @@ async function generateFeaturedImage(title, industry) {
             throw new Error('No image data returned from DALL-E 3');
         }
 
-        const imageBase64 = response.data[0].b64_json;
+        // Process and compress the image
+        const originalImageBuffer = Buffer.from(response.data[0].b64_json, 'base64');
+        
+        // Resize to landscape format (1400x800) and compress
+        const processedImageBuffer = await sharp(originalImageBuffer)
+            .resize(1400, 800, { 
+                fit: 'cover', 
+                position: 'center' 
+            })
+            .jpeg({ 
+                quality: 85, // Good quality with compression
+                progressive: true 
+            })
+            .toBuffer();
+
+        const imageBase64 = processedImageBuffer.toString('base64');
         
         // Generate SEO-friendly ALT text
         const altText = `Professional ${industry} blog featured image for "${title}"`;
@@ -251,7 +267,7 @@ async function generateFeaturedImage(title, industry) {
             imageBase64,
             altText,
             description: `Featured image for blog post: ${title}`,
-            specifications: `Professional ${industry} industry image, 1792x1024px, HD quality, landscape orientation`
+            specifications: `Professional ${industry} industry image, 1400x800px, compressed JPEG, landscape orientation`
         };
         
     } catch (error) {
