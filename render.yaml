@@ -4,24 +4,15 @@ services:
     name: blog-monkee-backend
     runtime: node
     plan: free
-    buildCommand: cd backend && npm install
-    startCommand: cd backend && npm start
-    healthCheckPath: /api/clients
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: PORT
-        value: 3001
-      - key: API_KEY
-        fromDatabase:
-          name: blog-monkee-secrets
-          property: gemini_api_key
-      - key: DATABASE_URL
-        fromDatabase:
-          name: blog-monkee-db
-          property: connectionString
 
-  # Frontend Static Site
+  # Frontend Static Site  
   - type: web
     name: blog-monkee-frontend
     runtime: static
@@ -32,8 +23,8 @@ services:
       - key: VITE_API_URL
         value: https://blog-monkee-backend.onrender.com
 
-  # PostgreSQL Database
 databases:
+  # PostgreSQL Database
   - name: blog-monkee-db
     databaseName: blog_monkee
     user: blog_monkee_user
