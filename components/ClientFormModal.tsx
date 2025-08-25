@@ -93,6 +93,11 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
             <div className="text-xs text-slate-400 mt-1">
                 This will be used to find relevant internal links for blog posts. Minimum 2, average 5-8 internal links per article.
             </div>
+            
+            {/* Show sitemap test button if client exists and has sitemap URL */}
+            {client.id && formData.sitemapUrl && (
+                <SitemapTestButton clientId={client.id} />
+            )}
 
             <h3 className="text-lg font-semibold text-slate-300 pt-4 border-t border-slate-700">WordPress Details</h3>
             <InputField label="WordPress Site URL" name="wp.url" value={formData.wp?.url || ''} onChange={handleChange} type="url" />
@@ -190,6 +195,74 @@ const WordPressTestButton = ({ clientId }) => {
                                     ))}
                                 </ul>
                             )}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// Sitemap Test Button Component
+const SitemapTestButton = ({ clientId }) => {
+    const [testing, setTesting] = useState(false);
+    const [testResult, setTestResult] = useState(null);
+
+    const handleTest = async () => {
+        setTesting(true);
+        setTestResult(null);
+        try {
+            const result = await api.testSitemapParsing(clientId);
+            setTestResult(result);
+        } catch (err) {
+            setTestResult({ 
+                success: false, 
+                error: 'Sitemap test failed', 
+                details: err.message 
+            });
+        } finally {
+            setTesting(false);
+        }
+    };
+
+    return (
+        <div className="p-3 bg-slate-700 rounded-md mt-2">
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-300">Test Sitemap Parsing</span>
+                <button
+                    type="button"
+                    onClick={handleTest}
+                    disabled={testing}
+                    className="bg-green-500 hover:bg-green-600 text-white text-sm py-1 px-3 rounded transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                    {testing && <Spinner small />}
+                    {testing ? 'Testing...' : 'Test Sitemap'}
+                </button>
+            </div>
+            
+            {testResult && (
+                <div className={`text-sm p-2 rounded ${testResult.success ? 'bg-green-800 text-green-200' : 'bg-red-800 text-red-200'}`}>
+                    {testResult.success ? (
+                        <div>
+                            <p className="font-medium">✓ Sitemap parsed successfully!</p>
+                            <p>Found {testResult.sitemap?.totalUrlsFound} URLs in sitemap</p>
+                            <p>Database has {testResult.database?.existingUrls} stored URLs</p>
+                            {testResult.sitemap?.sampleUrls && testResult.sitemap.sampleUrls.length > 0 && (
+                                <div className="mt-2">
+                                    <p className="text-xs font-medium">Sample URLs:</p>
+                                    <ul className="text-xs mt-1 list-disc list-inside">
+                                        {testResult.sitemap.sampleUrls.slice(0, 3).map((urlData, i) => (
+                                            <li key={i} className="truncate">{urlData.url}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div>
+                            <p className="font-medium">✗ Sitemap test failed</p>
+                            <p>{testResult.error}</p>
+                            {testResult.details && <p className="text-xs mt-1">{testResult.details}</p>}
                         </div>
                     )}
                 </div>

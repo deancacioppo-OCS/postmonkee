@@ -945,6 +945,93 @@ app.get('/api/debug/internal-links/:clientId', async (req, res) => {
     }
 });
 
+// Sitemap Parsing Test
+app.post('/api/test/sitemap', async (req, res) => {
+    const { clientId } = req.body;
+    
+    if(!clientId) {
+        return res.status(400).json({ error: 'Client ID is required' });
+    }
+    
+    try {
+        // Get client sitemap URL
+        const result = await pool.query('SELECT "sitemapUrl", name FROM clients WHERE id = $1', [clientId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Client not found' });
+        }
+        
+        const client = result.rows[0];
+        const sitemapUrl = client.sitemapUrl;
+        
+        if (!sitemapUrl) {
+            return res.status(400).json({ error: 'No sitemap URL configured for this client' });
+        }
+        
+        console.log(`Testing sitemap parsing for client ${client.name}: ${sitemapUrl}`);
+        
+        // Test fetching the sitemap
+        const response = await fetch(sitemapUrl);
+        if (!response.ok) {
+            return res.status(400).json({ 
+                error: `Failed to fetch sitemap: ${response.status} ${response.statusText}`,
+                sitemapUrl: sitemapUrl
+            });
+        }
+        
+        const xmlText = await response.text();
+        
+        // Parse XML to extract URLs
+        const urlPattern = /<url>\s*<loc>(.*?)<\/loc>(?:\s*<lastmod>(.*?)<\/lastmod>)?.*?<\/url>/gs;
+        const urls = [];
+        let match;
+        
+        while ((match = urlPattern.exec(xmlText)) !== null) {
+            const url = match[1];
+            const lastmod = match[2] || null;
+            
+            // Skip non-page URLs (images, sitemaps, etc.)
+            if (url.includes('.xml') || url.includes('.jpg') || url.includes('.png') || url.includes('.pdf')) {
+                continue;
+            }
+            
+            urls.push({ url, lastmod });
+        }
+        
+        // Get current URLs in database for this client
+        const existingUrls = await pool.query(
+            'SELECT url, title, description FROM sitemap_urls WHERE client_id = $1',
+            [clientId]
+        );
+        
+        res.json({
+            success: true,
+            client: {
+                id: clientId,
+                name: client.name,
+                sitemapUrl: sitemapUrl
+            },
+            sitemap: {
+                accessible: true,
+                totalUrlsFound: urls.length,
+                sampleUrls: urls.slice(0, 5), // Show first 5 URLs as sample
+            },
+            database: {
+                existingUrls: existingUrls.rows.length,
+                sampleExisting: existingUrls.rows.slice(0, 3)
+            },
+            message: `Successfully parsed sitemap and found ${urls.length} URLs. Database has ${existingUrls.rows.length} existing URLs for this client.`
+        });
+        
+    } catch (error) {
+        console.error('Error testing sitemap:', error);
+        res.status(500).json({ 
+            error: 'Failed to test sitemap parsing', 
+            details: error.message 
+        });
+    }
+});
+
 // WordPress Connection Test
 app.post('/api/test/wordpress', async (req, res) => {
     const { clientId } = req.body;
