@@ -69,6 +69,34 @@ async function initializeDb() {
         UNIQUE(client_id, url)
       );
     `);
+
+    // Add missing columns to existing sitemap_urls table
+    const columnsToAdd = [
+      { name: 'title', type: 'TEXT' },
+      { name: 'description', type: 'TEXT' },
+      { name: 'keywords', type: 'TEXT' },
+      { name: 'category', type: 'TEXT' }
+    ];
+
+    for (const column of columnsToAdd) {
+      try {
+        // Check if column exists
+        const columnCheck = await client.query(`
+          SELECT column_name 
+          FROM information_schema.columns 
+          WHERE table_name = 'sitemap_urls' AND column_name = $1;
+        `, [column.name]);
+        
+        if (columnCheck.rows.length === 0) {
+          await client.query(`ALTER TABLE sitemap_urls ADD COLUMN "${column.name}" ${column.type};`);
+          console.log(`✓ Added column '${column.name}' to sitemap_urls table`);
+        } else {
+          console.log(`✓ Column '${column.name}' already exists in sitemap_urls table`);
+        }
+      } catch (alterError) {
+        console.log(`Note: Could not add column '${column.name}':`, alterError.message);
+      }
+    }
     // Create used_topics table
     await client.query(`
       CREATE TABLE IF NOT EXISTS used_topics (
