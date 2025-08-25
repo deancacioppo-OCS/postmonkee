@@ -46,7 +46,8 @@ async function initializeDb() {
         category TEXT,
         last_modified TIMESTAMP WITH TIME ZONE,
         "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+        UNIQUE(client_id, url)
       );
     `);
     // Create used_topics table
@@ -124,11 +125,13 @@ async function parseSitemapForClient(clientId, sitemapUrl) {
         for (const { url, lastmod } of urls) {
             try {
                 await pool.query(
-                    'INSERT INTO sitemap_urls (client_id, url, last_modified) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+                    'INSERT INTO sitemap_urls (client_id, url, last_modified) VALUES ($1, $2, $3)',
                     [clientId, url, lastmod ? new Date(lastmod) : null]
                 );
             } catch (insertError) {
-                console.log(`Failed to insert URL ${url}:`, insertError.message);
+                if (!insertError.message.includes('duplicate key')) {
+                    console.log(`Failed to insert URL ${url}:`, insertError.message);
+                }
             }
         }
         
@@ -521,6 +524,28 @@ app.post('/api/generate/content', async (req, res) => {
             [clientId]
         );
         internalLinks = linkResult.rows;
+        console.log(`Found ${internalLinks.length} internal links for client ${clientId}`);
+        
+        // If no analyzed links, try to get any sitemap URLs
+        if (internalLinks.length === 0) {
+            const allLinksResult = await pool.query(
+                'SELECT url FROM sitemap_urls WHERE client_id = $1 ORDER BY "createdAt" DESC LIMIT 10',
+                [clientId]
+            );
+            console.log(`Found ${allLinksResult.rows.length} total sitemap URLs for client ${clientId}`);
+            
+            // Use basic URLs if no analyzed ones available
+            if (allLinksResult.rows.length > 0) {
+                internalLinks = allLinksResult.rows.map(row => ({
+                    url: row.url,
+                    title: `Page: ${row.url.split('/').pop() || 'Home'}`,
+                    description: 'Internal page',
+                    category: 'general',
+                    keywords: 'related content'
+                }));
+                console.log(`Using ${internalLinks.length} basic internal links`);
+            }
+        }
     } catch (linkError) {
         console.log('Failed to fetch internal links:', linkError.message);
     }
@@ -873,6 +898,53 @@ app.get('/api/sitemap/urls/:clientId', async (req, res) => {
     }
 });
 
+// Debug: Check internal links for a client
+app.get('/api/debug/internal-links/:clientId', async (req, res) => {
+    const { clientId } = req.params;
+    
+    try {
+        // Get client info
+        const clientResult = await pool.query('SELECT name, "sitemapUrl" FROM clients WHERE id = $1', [clientId]);
+        const client = clientResult.rows[0];
+        
+        if (!client) {
+            return res.status(404).json({ error: 'Client not found' });
+        }
+        
+        // Get all sitemap URLs
+        const allUrlsResult = await pool.query(
+            'SELECT url, title, description, category, keywords, "createdAt" FROM sitemap_urls WHERE client_id = $1 ORDER BY "createdAt" DESC',
+            [clientId]
+        );
+        
+        // Get analyzed URLs (with titles)
+        const analyzedUrlsResult = await pool.query(
+            'SELECT url, title, description, category, keywords FROM sitemap_urls WHERE client_id = $1 AND title IS NOT NULL ORDER BY "createdAt" DESC',
+            [clientId]
+        );
+        
+        res.json({
+            client: {
+                name: client.name,
+                sitemapUrl: client.sitemapUrl
+            },
+            stats: {
+                totalUrls: allUrlsResult.rows.length,
+                analyzedUrls: analyzedUrlsResult.rows.length,
+                hasSitemap: !!client.sitemapUrl
+            },
+            allUrls: allUrlsResult.rows,
+            analyzedUrls: analyzedUrlsResult.rows
+        });
+    } catch (error) {
+        console.error('Error debugging internal links:', error);
+        res.status(500).json({ 
+            error: 'Failed to fetch debug info', 
+            details: error.message 
+        });
+    }
+});
+
 // WordPress Connection Test
 app.post('/api/test/wordpress', async (req, res) => {
     const { clientId } = req.body;
@@ -1025,6 +1097,40 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         
         const plan = JSON.parse(planResponse.text);
 
+        // Get internal links for complete blog generation too
+        let internalLinks = [];
+        try {
+            const linkResult = await pool.query(
+                'SELECT url, title, description, category, keywords FROM sitemap_urls WHERE client_id = $1 ORDER BY "createdAt" DESC LIMIT 20',
+                [clientId]
+            );
+            internalLinks = linkResult.rows;
+            
+            // If no analyzed links, use basic URLs
+            if (internalLinks.length === 0) {
+                const allLinksResult = await pool.query(
+                    'SELECT url FROM sitemap_urls WHERE client_id = $1 ORDER BY "createdAt" DESC LIMIT 10',
+                    [clientId]
+                );
+                if (allLinksResult.rows.length > 0) {
+                    internalLinks = allLinksResult.rows.map(row => ({
+                        url: row.url,
+                        title: `Page: ${row.url.split('/').pop() || 'Home'}`,
+                        description: 'Internal page',
+                        category: 'general',
+                        keywords: 'related content'
+                    }));
+                }
+            }
+        } catch (linkError) {
+            console.log('Failed to fetch internal links for complete blog:', linkError.message);
+        }
+
+        const internalLinksContext = internalLinks.length > 0 
+            ? `\nAvailable Internal Links (use 5-8 contextually relevant ones with natural anchor text):
+               ${internalLinks.map(link => `- ${link.title}: ${link.url} (Keywords: ${link.keywords || 'N/A'})`).join('\n')}`
+            : '\nNo internal links available yet.';
+
         // Step 3: Generate Complete Blog Post
         const contentPrompt = `
             You are an expert content writer for a company in the '${client.industry}' industry.
@@ -1037,6 +1143,7 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             Title: ${plan.title}
             Angle: ${plan.angle}
             Target Keywords: ${plan.keywords.join(', ')}
+            ${internalLinksContext}
             
             Requirements:
             - Write in HTML format with proper headings (h1, h2, h3)
@@ -1045,7 +1152,10 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             - Make it engaging and valuable for readers
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
-            - Add internal linking suggestions as comments
+            - MUST include 5-8 contextual internal links using natural anchor text
+            - Internal links should flow naturally within sentences
+            - Use varied anchor text that matches the content context
+            - Minimum 2 internal links, average 5-8 per article
         `;
         
         const contentResponse = await ai.models.generateContent({
