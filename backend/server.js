@@ -107,61 +107,67 @@ if (!process.env.API_KEY) {
 }
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-// --- Sitemap Parsing Functions ---
+// --- Web Crawling Functions ---
 
-async function parseSitemapForClient(clientId, sitemapUrl) {
+async function crawlWebsiteForClient(clientId, websiteUrl) {
     try {
-        console.log(`Parsing sitemap for client ${clientId}: ${sitemapUrl}`);
+        console.log(`Crawling website for client ${clientId}: ${websiteUrl}`);
         
-        // Fetch the sitemap XML
-        const response = await fetch(sitemapUrl);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch sitemap: ${response.statusText}`);
-        }
-        
-        const xmlText = await response.text();
-        
-        // Parse XML to extract URLs
-        const urlPattern = /<url>\s*<loc>(.*?)<\/loc>(?:\s*<lastmod>(.*?)<\/lastmod>)?.*?<\/url>/gs;
-        const urls = [];
-        let match;
-        
-        while ((match = urlPattern.exec(xmlText)) !== null) {
-            const url = match[1];
-            const lastmod = match[2] || null;
+        // Use Gemini to intelligently crawl the website
+        const crawlPrompt = `
+            You are a web crawler. I need you to analyze a website and find all internal pages that would be good for internal linking in blog content.
             
-            // Skip non-page URLs (images, sitemaps, etc.)
-            if (url.includes('.xml') || url.includes('.jpg') || url.includes('.png') || url.includes('.pdf')) {
-                continue;
+            Website: ${websiteUrl}
+            
+            Instructions:
+            1. Start from the homepage
+            2. Find and return URLs of internal pages (same domain only)
+            3. Focus on: blog posts, service pages, product pages, about pages, resource pages
+            4. Skip: images, PDFs, external links, contact forms, login pages
+            5. For each URL, provide a title and brief description
+            6. Limit to 30 most important pages
+            
+            Return a JSON array of objects with this structure:
+            [
+                {
+                    "url": "https://example.com/page",
+                    "title": "Page Title",
+                    "description": "Brief description of what this page is about",
+                    "category": "blog|service|product|about|resource|other"
+                }
+            ]
+            
+            Be thorough but prioritize pages that would be valuable for internal linking.
+        `;
+        
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: crawlPrompt,
+            config: {
+                responseMimeType: "application/json"
             }
-            
-            urls.push({ url, lastmod });
-        }
+        });
         
-        console.log(`Found ${urls.length} URLs in sitemap`);
+        const crawledPages = JSON.parse(response.text);
+        console.log(`Gemini found ${crawledPages.length} pages to crawl`);
         
         // Store URLs in database
-        for (const { url, lastmod } of urls) {
+        for (const page of crawledPages) {
             try {
                 await pool.query(
-                    'INSERT INTO sitemap_urls (client_id, url, last_modified) VALUES ($1, $2, $3)',
-                    [clientId, url, lastmod ? new Date(lastmod) : null]
+                    'INSERT INTO sitemap_urls (client_id, url, title, description, category, last_modified) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT (client_id, url) DO UPDATE SET title = $3, description = $4, category = $5, last_modified = NOW()',
+                    [clientId, page.url, page.title, page.description, page.category]
                 );
             } catch (insertError) {
-                if (!insertError.message.includes('duplicate key')) {
-                    console.log(`Failed to insert URL ${url}:`, insertError.message);
-                }
+                console.log(`Failed to insert URL ${page.url}:`, insertError.message);
             }
         }
         
-        // Use AI to analyze and categorize URLs for better internal linking
-        if (urls.length > 0) {
-            await analyzeUrlsWithAI(clientId, urls.slice(0, 50)); // Analyze first 50 URLs
-        }
+        console.log(`Stored ${crawledPages.length} URLs for client ${clientId}`);
+        return crawledPages.length;
         
-        return urls.length;
     } catch (error) {
-        console.error('Error parsing sitemap:', error);
+        console.error('Error crawling website:', error);
         throw error;
     }
 }
@@ -272,24 +278,27 @@ app.get('/api/clients/:id', async (req, res) => {
 
 // CREATE a new client
 app.post('/api/clients', async (req, res) => {
-  const { name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, sitemapUrl, wp } = req.body;
+  const { name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp } = req.body;
   const newClient = {
     id: crypto.randomUUID(),
-    name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, sitemapUrl, wp
+    name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp
   };
   try {
     const result = await pool.query(
-      `INSERT INTO clients (id, name, industry, "websiteUrl", "uniqueValueProp", "brandVoice", "contentStrategy", "sitemapUrl", wp) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [newClient.id, newClient.name, newClient.industry, newClient.websiteUrl, newClient.uniqueValueProp, newClient.brandVoice, newClient.contentStrategy, newClient.sitemapUrl, newClient.wp]
+      `INSERT INTO clients (id, name, industry, "websiteUrl", "uniqueValueProp", "brandVoice", "contentStrategy", wp) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [newClient.id, newClient.name, newClient.industry, newClient.websiteUrl, newClient.uniqueValueProp, newClient.brandVoice, newClient.contentStrategy, newClient.wp]
     );
     
-    // If sitemap URL is provided, parse and store it
-    if (sitemapUrl) {
+    // Crawl website for internal links if websiteUrl is provided
+    if (websiteUrl) {
       try {
-        await parseSitemapForClient(newClient.id, sitemapUrl);
-      } catch (sitemapError) {
-        console.log('Failed to parse sitemap:', sitemapError.message);
+        console.log(`Starting website crawl for new client: ${name}`);
+        await crawlWebsiteForClient(newClient.id, websiteUrl);
+        console.log(`Website crawl completed for client: ${name}`);
+      } catch (crawlError) {
+        console.log(`Failed to crawl website for client ${name}:`, crawlError.message);
+        // Don't fail client creation if crawling fails
       }
     }
     
@@ -302,26 +311,32 @@ app.post('/api/clients', async (req, res) => {
 
 // UPDATE a client
 app.put('/api/clients/:id', async (req, res) => {
-    const { name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, sitemapUrl, wp } = req.body;
+    const { name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp } = req.body;
     try {
+        // Get current client to compare websiteUrl
+        const currentClient = await pool.query('SELECT "websiteUrl" FROM clients WHERE id = $1', [req.params.id]);
+        const currentWebsiteUrl = currentClient.rows[0]?.websiteUrl;
+        
         const result = await pool.query(
             `UPDATE clients SET 
              name = $1, industry = $2, "websiteUrl" = $3, "uniqueValueProp" = $4, 
-             "brandVoice" = $5, "contentStrategy" = $6, "sitemapUrl" = $7, wp = $8, "updatedAt" = NOW()
-             WHERE id = $9 RETURNING *`,
-            [name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, sitemapUrl, wp, req.params.id]
+             "brandVoice" = $5, "contentStrategy" = $6, wp = $7, "updatedAt" = NOW()
+             WHERE id = $8 RETURNING *`,
+            [name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp, req.params.id]
         );
         
         if (result.rows.length > 0) {
-            // If sitemap URL is provided and changed, parse and store it
-            if (sitemapUrl) {
+            // If website URL is provided and changed, crawl and store it
+            if (websiteUrl && websiteUrl !== currentWebsiteUrl) {
                 try {
-                    // Clear existing sitemap URLs for this client
+                    console.log(`Website URL changed for client ${name}, starting crawl...`);
+                    // Clear existing URLs for this client
                     await pool.query('DELETE FROM sitemap_urls WHERE client_id = $1', [req.params.id]);
-                    // Parse and store new sitemap
-                    await parseSitemapForClient(req.params.id, sitemapUrl);
-                } catch (sitemapError) {
-                    console.log('Failed to parse sitemap:', sitemapError.message);
+                    // Crawl and store new website
+                    await crawlWebsiteForClient(req.params.id, websiteUrl);
+                    console.log(`Website crawl completed for client: ${name}`);
+                } catch (crawlError) {
+                    console.log(`Failed to crawl website for client ${name}:`, crawlError.message);
                 }
             }
             
@@ -835,6 +850,23 @@ app.post('/api/publish/wordpress', async (req, res) => {
             console.log('Topic already exists or error storing:', topicError.message);
         }
 
+        // Add published blog to internal links database for future linking
+        try {
+            await pool.query(
+                'INSERT INTO sitemap_urls (client_id, url, title, description, category, last_modified) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT (client_id, url) DO UPDATE SET title = $3, description = $4, category = $5, last_modified = NOW()',
+                [
+                    clientId, 
+                    wpPost.link,
+                    title,
+                    metaDescription || 'Generated blog post',
+                    'blog'
+                ]
+            );
+            console.log(`Added published blog to internal links database: ${title}`);
+        } catch (linkError) {
+            console.log('Failed to add published blog to internal links:', linkError.message);
+        }
+
         res.json({
             success: true,
             postId: wpPost.id,
@@ -964,62 +996,36 @@ app.get('/api/debug/internal-links/:clientId', async (req, res) => {
     }
 });
 
-// Sitemap Parsing Test
-app.post('/api/test/sitemap', async (req, res) => {
-    const { clientId } = req.body;
+// Website Crawling Test
+app.post('/api/test/crawl', async (req, res) => {
+    const { clientId, websiteUrl } = req.body;
     
     if(!clientId) {
         return res.status(400).json({ error: 'Client ID is required' });
     }
     
+    if(!websiteUrl) {
+        return res.status(400).json({ error: 'Website URL is required' });
+    }
+    
     try {
-        // Get client sitemap URL
-        const result = await pool.query('SELECT "sitemapUrl", name FROM clients WHERE id = $1', [clientId]);
+        // Get client info
+        const result = await pool.query('SELECT name FROM clients WHERE id = $1', [clientId]);
         
         if (result.rows.length === 0) {
             return res.status(404).json({ error: 'Client not found' });
         }
         
         const client = result.rows[0];
-        const sitemapUrl = client.sitemapUrl;
         
-        if (!sitemapUrl) {
-            return res.status(400).json({ error: 'No sitemap URL configured for this client' });
-        }
+        console.log(`Testing website crawl for client ${client.name}: ${websiteUrl}`);
         
-        console.log(`Testing sitemap parsing for client ${client.name}: ${sitemapUrl}`);
-        
-        // Test fetching the sitemap
-        const response = await fetch(sitemapUrl);
-        if (!response.ok) {
-            return res.status(400).json({ 
-                error: `Failed to fetch sitemap: ${response.status} ${response.statusText}`,
-                sitemapUrl: sitemapUrl
-            });
-        }
-        
-        const xmlText = await response.text();
-        
-        // Parse XML to extract URLs
-        const urlPattern = /<url>\s*<loc>(.*?)<\/loc>(?:\s*<lastmod>(.*?)<\/lastmod>)?.*?<\/url>/gs;
-        const urls = [];
-        let match;
-        
-        while ((match = urlPattern.exec(xmlText)) !== null) {
-            const url = match[1];
-            const lastmod = match[2] || null;
-            
-            // Skip non-page URLs (images, sitemaps, etc.)
-            if (url.includes('.xml') || url.includes('.jpg') || url.includes('.png') || url.includes('.pdf')) {
-                continue;
-            }
-            
-            urls.push({ url, lastmod });
-        }
+        // Test the crawling function
+        const crawledCount = await crawlWebsiteForClient(clientId, websiteUrl);
         
         // Get current URLs in database for this client
         const existingUrls = await pool.query(
-            'SELECT url, title, description FROM sitemap_urls WHERE client_id = $1',
+            'SELECT url, title, description, category FROM sitemap_urls WHERE client_id = $1 ORDER BY last_modified DESC',
             [clientId]
         );
         
@@ -1028,24 +1034,28 @@ app.post('/api/test/sitemap', async (req, res) => {
             client: {
                 id: clientId,
                 name: client.name,
-                sitemapUrl: sitemapUrl
+                websiteUrl: websiteUrl
             },
-            sitemap: {
-                accessible: true,
-                totalUrlsFound: urls.length,
-                sampleUrls: urls.slice(0, 5), // Show first 5 URLs as sample
+            crawl: {
+                totalPagesFound: crawledCount,
+                samplePages: existingUrls.rows.slice(0, 5).map(row => ({
+                    url: row.url,
+                    title: row.title,
+                    description: row.description,
+                    category: row.category
+                }))
             },
             database: {
                 existingUrls: existingUrls.rows.length,
                 sampleExisting: existingUrls.rows.slice(0, 3)
             },
-            message: `Successfully parsed sitemap and found ${urls.length} URLs. Database has ${existingUrls.rows.length} existing URLs for this client.`
+            message: `Successfully crawled website and found ${crawledCount} pages. Database has ${existingUrls.rows.length} total URLs for this client.`
         });
         
     } catch (error) {
-        console.error('Error testing sitemap:', error);
+        console.error('Error testing website crawl:', error);
         res.status(500).json({ 
-            error: 'Failed to test sitemap parsing', 
+            error: 'Failed to test website crawling', 
             details: error.message 
         });
     }

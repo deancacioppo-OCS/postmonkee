@@ -18,7 +18,7 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
       uniqueValueProp: '',
       brandVoice: '',
       contentStrategy: '',
-      sitemapUrl: '',
+
       wp: { url: '', username: '' }
     }
   );
@@ -82,21 +82,14 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
             <TextareaField label="Content Strategy" name="contentStrategy" value={formData.contentStrategy || ''} onChange={handleChange} />
 
             <h3 className="text-lg font-semibold text-slate-300 pt-4 border-t border-slate-700">SEO & Internal Linking</h3>
-            <InputField 
-                label="XML Sitemap URL" 
-                name="sitemapUrl" 
-                value={formData.sitemapUrl || ''} 
-                onChange={handleChange} 
-                type="url" 
-                placeholder="https://yoursite.com/sitemap.xml"
-            />
-            <div className="text-xs text-slate-400 mt-1">
-                This will be used to find relevant internal links for blog posts. Minimum 2, average 5-8 internal links per article.
+            <div className="text-sm text-slate-400 p-3 bg-slate-700 rounded-md">
+                <p className="font-medium mb-2">🕷️ Intelligent Website Crawling</p>
+                <p>When you save this client, our AI will automatically crawl the website URL to discover pages for internal linking. Each published blog will also be added to the internal links database.</p>
             </div>
             
-            {/* Show sitemap test button if client exists and has sitemap URL */}
-            {client.id && formData.sitemapUrl && (
-                <SitemapTestButton clientId={client.id} />
+            {/* Show website crawl test button if client exists and has website URL */}
+            {client.id && formData.websiteUrl && (
+                <WebsiteCrawlTestButton clientId={client.id} websiteUrl={formData.websiteUrl} />
             )}
 
             <h3 className="text-lg font-semibold text-slate-300 pt-4 border-t border-slate-700">WordPress Details</h3>
@@ -203,8 +196,8 @@ const WordPressTestButton = ({ clientId }) => {
     );
 };
 
-// Sitemap Test Button Component
-const SitemapTestButton = ({ clientId }) => {
+// Website Crawl Test Button Component
+const WebsiteCrawlTestButton = ({ clientId, websiteUrl }) => {
     const [testing, setTesting] = useState(false);
     const [testResult, setTestResult] = useState(null);
 
@@ -212,12 +205,12 @@ const SitemapTestButton = ({ clientId }) => {
         setTesting(true);
         setTestResult(null);
         try {
-            const result = await api.testSitemapParsing(clientId);
+            const result = await api.testWebsiteCrawling(clientId, websiteUrl);
             setTestResult(result);
         } catch (err) {
             setTestResult({ 
                 success: false, 
-                error: 'Sitemap test failed', 
+                error: 'Website crawl test failed', 
                 details: err.message 
             });
         } finally {
@@ -228,15 +221,15 @@ const SitemapTestButton = ({ clientId }) => {
     return (
         <div className="p-3 bg-slate-700 rounded-md mt-2">
             <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-300">Test Sitemap Parsing</span>
+                <span className="text-sm font-medium text-slate-300">Test AI Website Crawling</span>
                 <button
                     type="button"
                     onClick={handleTest}
                     disabled={testing}
-                    className="bg-green-500 hover:bg-green-600 text-white text-sm py-1 px-3 rounded transition-colors disabled:opacity-50 flex items-center gap-2"
+                    className="bg-purple-500 hover:bg-purple-600 text-white text-sm py-1 px-3 rounded transition-colors disabled:opacity-50 flex items-center gap-2"
                 >
                     {testing && <Spinner small />}
-                    {testing ? 'Testing...' : 'Test Sitemap'}
+                    {testing ? 'Crawling...' : 'Test Crawl'}
                 </button>
             </div>
             
@@ -244,15 +237,17 @@ const SitemapTestButton = ({ clientId }) => {
                 <div className={`text-sm p-2 rounded ${testResult.success ? 'bg-green-800 text-green-200' : 'bg-red-800 text-red-200'}`}>
                     {testResult.success ? (
                         <div>
-                            <p className="font-medium">✓ Sitemap parsed successfully!</p>
-                            <p>Found {testResult.sitemap?.totalUrlsFound} URLs in sitemap</p>
+                            <p className="font-medium">✓ Website crawled successfully!</p>
+                            <p>AI discovered {testResult.crawl?.totalPagesFound} pages</p>
                             <p>Database has {testResult.database?.existingUrls} stored URLs</p>
-                            {testResult.sitemap?.sampleUrls && testResult.sitemap.sampleUrls.length > 0 && (
+                            {testResult.crawl?.samplePages && testResult.crawl.samplePages.length > 0 && (
                                 <div className="mt-2">
-                                    <p className="text-xs font-medium">Sample URLs:</p>
+                                    <p className="text-xs font-medium">Sample Pages:</p>
                                     <ul className="text-xs mt-1 list-disc list-inside">
-                                        {testResult.sitemap.sampleUrls.slice(0, 3).map((urlData, i) => (
-                                            <li key={i} className="truncate">{urlData.url}</li>
+                                        {testResult.crawl.samplePages.slice(0, 3).map((page, i) => (
+                                            <li key={i} className="truncate">
+                                                <span className="font-medium">{page.title}:</span> {page.url}
+                                            </li>
                                         ))}
                                     </ul>
                                 </div>
@@ -260,7 +255,7 @@ const SitemapTestButton = ({ clientId }) => {
                         </div>
                     ) : (
                         <div>
-                            <p className="font-medium">✗ Sitemap test failed</p>
+                            <p className="font-medium">✗ Website crawl test failed</p>
                             <p>{testResult.error}</p>
                             {testResult.details && <p className="text-xs mt-1">{testResult.details}</p>}
                         </div>

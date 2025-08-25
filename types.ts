@@ -6,7 +6,7 @@ export interface Client {
   uniqueValueProp: string;
   brandVoice: string;
   contentStrategy: string;
-  sitemapUrl?: string;
+
   wp: { url: string; username: string; appPassword?: string };
   sitemapUrls?: string[];
   usedTopics?: string[];

@@ -102,10 +102,10 @@ export const testWordPressConnection = (clientId: string): Promise<{ success: bo
     }).then(res => handleResponse<{ success: boolean, message: string, user?: any, error?: string, details?: string, suggestions?: string[] }>(res));
 };
 
-export const testSitemapParsing = (clientId: string): Promise<{ success: boolean, message: string, client: any, sitemap: any, database: any, error?: string, details?: string }> => {
-    return fetch(`${BASE_URL}/api/test/sitemap`, {
+export const testWebsiteCrawling = (clientId: string, websiteUrl: string): Promise<{ success: boolean, message: string, client: any, crawl: any, database: any, error?: string, details?: string }> => {
+    return fetch(`${BASE_URL}/api/test/crawl`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId }),
-    }).then(res => handleResponse<{ success: boolean, message: string, client: any, sitemap: any, database: any, error?: string, details?: string }>(res));
+        body: JSON.stringify({ clientId, websiteUrl }),
+    }).then(res => handleResponse<{ success: boolean, message: string, client: any, crawl: any, database: any, error?: string, details?: string }>(res));
 };
