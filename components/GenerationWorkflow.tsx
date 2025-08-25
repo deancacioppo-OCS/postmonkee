@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Client, BlogPlan } from '../types';
+import { Client, BlogPlan, BlogOutline, BlogContent, BlogImages, CompleteBlog, WordPressPublishResult } from '../types';
 import * as api from '../services/geminiService';
 import Spinner from './Spinner';
 
@@ -11,19 +11,42 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
   const [topic, setTopic] = useState<string>('');
   const [sources, setSources] = useState<any[]>([]);
   const [plan, setPlan] = useState<BlogPlan | null>(null);
+  const [outline, setOutline] = useState<BlogOutline | null>(null);
+  const [content, setContent] = useState<BlogContent | null>(null);
+  const [images, setImages] = useState<BlogImages | null>(null);
+  const [publishResult, setPublishResult] = useState<WordPressPublishResult | null>(null);
   
   const [topicLoading, setTopicLoading] = useState(false);
   const [planLoading, setPlanLoading] = useState(false);
+  const [outlineLoading, setOutlineLoading] = useState(false);
+  const [contentLoading, setContentLoading] = useState(false);
+  const [imagesLoading, setImagesLoading] = useState(false);
+  const [publishLoading, setPublishLoading] = useState(false);
+  const [completeBlogLoading, setCompleteBlogLoading] = useState(false);
 
   const [topicError, setTopicError] = useState<string | null>(null);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [outlineError, setOutlineError] = useState<string | null>(null);
+  const [contentError, setContentError] = useState<string | null>(null);
+  const [imagesError, setImagesError] = useState<string | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [completeBlogError, setCompleteBlogError] = useState<string | null>(null);
+
+  const resetAllSteps = () => {
+    setTopic('');
+    setSources([]);
+    setPlan(null);
+    setOutline(null);
+    setContent(null);
+    setImages(null);
+    setPublishResult(null);
+  };
 
   const handleDiscoverTopic = useCallback(async () => {
     if (!client) return;
     setTopicLoading(true);
     setTopicError(null);
-    setTopic('');
-    setPlan(null); // Reset subsequent steps
+    resetAllSteps(); // Reset all subsequent steps
     try {
       const result = await api.generateTopic(client.id);
       setTopic(result.topic);
@@ -40,6 +63,10 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
     setPlanLoading(true);
     setPlanError(null);
     setPlan(null);
+    setOutline(null); // Reset subsequent steps
+    setContent(null);
+    setImages(null);
+    setPublishResult(null);
     try {
         const result = await api.generatePlan(client.id, topic);
         setPlan(result);
@@ -49,6 +76,101 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
         setPlanLoading(false);
     }
   }, [client, topic]);
+
+  const handleCreateOutline = useCallback(async () => {
+    if (!client || !topic || !plan) return;
+    setOutlineLoading(true);
+    setOutlineError(null);
+    setOutline(null);
+    setContent(null); // Reset subsequent steps
+    setImages(null);
+    setPublishResult(null);
+    try {
+        const result = await api.generateOutline(client.id, topic, plan.title, plan.angle, plan.keywords);
+        setOutline(result);
+    } catch (err) {
+        setOutlineError('Failed to create outline. Please try again.');
+    } finally {
+        setOutlineLoading(false);
+    }
+  }, [client, topic, plan]);
+
+  const handleGenerateContent = useCallback(async () => {
+    if (!client || !topic || !plan || !outline) return;
+    setContentLoading(true);
+    setContentError(null);
+    setContent(null);
+    setImages(null); // Reset subsequent steps
+    setPublishResult(null);
+    try {
+        const result = await api.generateContent(client.id, topic, plan.title, plan.angle, plan.keywords, outline.outline);
+        setContent(result);
+    } catch (err) {
+        setContentError('Failed to generate content. Please try again.');
+    } finally {
+        setContentLoading(false);
+    }
+  }, [client, topic, plan, outline]);
+
+  const handleGenerateImages = useCallback(async () => {
+    if (!client || !plan) return;
+    setImagesLoading(true);
+    setImagesError(null);
+    setImages(null);
+    try {
+        // Extract headings from outline if available
+        const headings = outline?.outline.match(/^#+\s+(.+)$/gm)?.map(h => h.replace(/^#+\s+/, '')) || [];
+        const result = await api.generateImages(client.id, plan.title, headings);
+        setImages(result);
+    } catch (err) {
+        setImagesError('Failed to generate images. Please try again.');
+    } finally {
+        setImagesLoading(false);
+    }
+  }, [client, plan, outline]);
+
+  const handlePublishToWordPress = useCallback(async () => {
+    if (!client || !plan || !content) return;
+    setPublishLoading(true);
+    setPublishError(null);
+    setPublishResult(null);
+    try {
+        const result = await api.publishToWordPress(
+            client.id, 
+            plan.title, 
+            content.content, 
+            content.metaDescription,
+            undefined, // featuredImage - would be base64 if we had actual images
+            plan.keywords, // use keywords as tags
+            [] // categories - could be derived from client industry
+        );
+        setPublishResult(result);
+    } catch (err) {
+        setPublishError('Failed to publish to WordPress. Please try again.');
+    } finally {
+        setPublishLoading(false);
+    }
+  }, [client, plan, content]);
+
+  const handleGenerateCompleteBlog = useCallback(async () => {
+    if (!client) return;
+    setCompleteBlogLoading(true);
+    setCompleteBlogError(null);
+    resetAllSteps();
+    try {
+        const result = await api.generateCompleteBlog(client.id);
+        setTopic(result.topic);
+        setSources(result.sources);
+        setPlan(result.plan);
+        setContent(result.content);
+        // Auto-set outline as "Generated" since it's included in the complete generation
+        setOutline({ outline: "Complete outline generated", estimatedWordCount: result.content.wordCount, seoScore: 85 });
+    } catch (err) {
+        setCompleteBlogError('Failed to generate complete blog. Please try again.');
+    } finally {
+        setCompleteBlogLoading(false);
+    }
+  }, [client]);
 
   if (!client) {
     return (

@@ -29,6 +29,41 @@ export interface BlogPlan {
   keywords: string[];
 }
 
+export interface BlogOutline {
+  outline: string;
+  estimatedWordCount: number;
+  seoScore: number;
+}
+
+export interface BlogContent {
+  content: string;
+  wordCount: number;
+  metaDescription: string;
+  faq: { question: string; answer: string }[];
+}
+
+export interface BlogImages {
+  featuredImage: { description: string; placeholder: string };
+  inBodyImages: { heading: string; description: string; placeholder: string }[];
+}
+
+export interface CompleteBlog {
+  topic: string;
+  sources: any[];
+  plan: BlogPlan;
+  content: BlogContent;
+  readyToPublish: boolean;
+}
+
+export interface WordPressPublishResult {
+  success: boolean;
+  postId: number;
+  postUrl: string;
+  editUrl: string;
+  status: string;
+  message: string;
+}
+
 
 export enum GenerationStep {
   TOPIC = 'Topic Discovery',
