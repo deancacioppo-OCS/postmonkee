@@ -61,7 +61,11 @@ async function initializeDb() {
 
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' 
+    ? ['https://blog-monkee-frontend.onrender.com']
+    : ['http://localhost:5173', 'http://localhost:3000']
+}));
 app.use(express.json());
 
 // Initialize Gemini AI
@@ -72,6 +76,11 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 
 // --- API Routes ---
+
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'OK', message: 'Blog MONKEE Backend is running' });
+});
 
 // GET all clients
 app.get('/api/clients', async (req, res) => {
