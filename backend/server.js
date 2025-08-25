@@ -243,7 +243,19 @@ async function generateFeaturedImage(title, industry) {
     
     try {
         // Create a detailed, professional prompt for DALL-E 3
-        const imagePrompt = `Create a professional, modern featured image for a blog post titled "${title}" in the ${industry} industry. The image should be visually appealing, relevant to the topic, high quality, suitable for a blog header, landscape orientation, clean design, minimal or no text overlay, appropriate for ${industry} industry content, engaging and professional.`;
+        const imagePrompt = `Create a professional, modern featured image for a blog post titled "${title}" in the ${industry} industry. 
+
+CRITICAL REQUIREMENTS:
+- NO TEXT or very minimal text in the image
+- Visually represent the title/topic through imagery, symbols, and concepts
+- Professional quality suitable for a blog header
+- Clean, modern design with landscape orientation
+- High quality and engaging
+- Appropriate for ${industry} industry content
+- Use visual metaphors and symbolic elements to convey the topic
+- Focus on imagery that tells the story without words
+
+The image should communicate the essence of "${title}" through pure visual elements, professional photography style, and symbolic representation rather than text overlay.`;
 
         // Generate image using OpenAI DALL-E 3 (standard size)
         const response = await openai.images.generate({
@@ -276,8 +288,8 @@ async function generateFeaturedImage(title, industry) {
 
         const imageBase64 = processedImageBuffer.toString('base64');
         
-        // Generate SEO-friendly ALT text
-        const altText = `Professional ${industry} blog featured image for "${title}"`;
+        // Generate SEO-friendly ALT text that describes the visual content
+        const altText = `Professional ${industry} featured image visually representing "${title}" through symbolic imagery and modern design elements, no text overlay`;
         
         console.log(`✅ DALL-E 3 image generation completed for "${title}"`);
         
