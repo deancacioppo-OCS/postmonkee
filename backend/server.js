@@ -1029,7 +1029,7 @@ app.post('/api/publish/wordpress', async (req, res) => {
             title: title,
             content: content,
             excerpt: metaDescription || '',
-            status: 'draft', // Start as draft for review
+            status: 'draft', // Always start as draft for review
             tags: tagIds // Use tag IDs
         };
         console.log('WordPress post data prepared:', { title, contentLength: content.length, status: postData.status, tagIds });
@@ -1093,7 +1093,7 @@ app.post('/api/publish/wordpress', async (req, res) => {
             postUrl: wpPost.link,
             editUrl: wpPost.link ? wpPost.link.replace(/\/$/, '') + '/wp-admin/post.php?post=' + wpPost.id + '&action=edit' : null,
             status: wpPost.status,
-            message: 'Blog post successfully created as draft in WordPress'
+            message: 'Blog post successfully created as draft in WordPress for review'
         });
 
     } catch (error) {
@@ -1761,8 +1761,8 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             // Continue without featured image rather than failing the whole process
         }
 
-        // Step 6: Auto-Publish to WordPress as LIVE
-        console.log(`🚀 Auto-publishing "${plan.title}" to WordPress as LIVE`);
+        // Step 6: Create WordPress Draft
+        console.log(`📝 Creating WordPress draft for "${plan.title}"`);
         
         // Handle tags - convert tag names to IDs or create new tags
         let tagIds = [];
@@ -1807,12 +1807,12 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             }
         }
 
-        // Prepare post data for LIVE publication
+        // Prepare post data for draft publication
         const postData = {
             title: plan.title,
             content: contentData.content,
             excerpt: contentData.metaDescription || '',
-            status: 'publish', // LIVE instead of draft!
+            status: 'draft', // Always draft for review
             tags: tagIds
         };
         
@@ -1868,7 +1868,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             console.log('Failed to add published blog to internal links:', linkError.message);
         }
 
-        console.log(`🎉 LUCKY SUCCESS: "${plan.title}" published LIVE at ${wpPost.link}`);
+        console.log(`🎉 LUCKY SUCCESS: "${plan.title}" created as draft at ${wpPost.link}`);
 
         // Return complete success data
         res.json({
@@ -1882,8 +1882,8 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                 postId: wpPost.id,
                 postUrl: wpPost.link,
                 editUrl: wpPost.link ? wpPost.link.replace(/\/$/, '') + '/wp-admin/post.php?post=' + wpPost.id + '&action=edit' : null,
-                status: 'published',
-                message: '🍀 Lucky! Blog post generated and published LIVE successfully!'
+                status: 'draft',
+                message: '🍀 Lucky! Blog post generated and created as draft for review!'
             },
             isLucky: true
         });

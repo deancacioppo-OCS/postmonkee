@@ -200,7 +200,7 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
           <div className="flex justify-between items-center">
             <div>
               <h3 className="text-lg font-medium text-green-300">🍀 I'm Feelin' Lucky</h3>
-              <p className="text-sm text-slate-400">Generate and auto-publish complete blog post live!</p>
+              <p className="text-sm text-slate-400">Generate complete blog post and create as draft for review!</p>
             </div>
             <button
               onClick={handleGenerateCompleteBlog}
@@ -208,7 +208,7 @@ const GenerationWorkflow: React.FC<GenerationWorkflowProps> = ({ client }) => {
               className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-bold py-2 px-4 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg"
             >
               {completeBlogLoading && <Spinner small />}
-              {completeBlogLoading ? 'Publishing...' : "I'm Feelin' Lucky 🍀"}
+              {completeBlogLoading ? 'Creating Draft...' : "I'm Feelin' Lucky 🍀"}
             </button>
           </div>
           {completeBlogError && <p className="text-red-400 text-sm mt-2">{completeBlogError}</p>}
