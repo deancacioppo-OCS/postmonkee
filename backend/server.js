@@ -63,7 +63,13 @@ async function initializeDb() {
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? ['https://blog-monkee-frontend.onrender.com']
+    ? [
+        'https://blog-monkee-frontend.onrender.com',
+        // Allow any Netlify domain
+        /https:\/\/.*\.netlify\.app$/,
+        // Allow any Netlify custom domain
+        /https:\/\/.*\.netlify\.com$/
+      ]
     : ['http://localhost:5173', 'http://localhost:3000']
 }));
 app.use(express.json());
