@@ -230,6 +230,47 @@ try {
 
 // --- Helper Functions ---
 
+// Helper function to generate FAQ HTML with JSON-LD schema
+function generateFAQHTML(faqs) {
+    if (!faqs || faqs.length === 0) {
+        return '';
+    }
+    
+    // Generate JSON-LD schema for SEO
+    const faqSchema = {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": faqs.map(faq => ({
+            "@type": "Question",
+            "name": faq.question,
+            "acceptedAnswer": {
+                "@type": "Answer",
+                "text": faq.answer
+            }
+        }))
+    };
+    
+    // Generate HTML structure
+    const faqHTML = `
+<section class="faq-section" style="margin-top: 3rem; padding: 2rem 0; border-top: 2px solid #e5e7eb;">
+    <h2 style="font-size: 1.875rem; font-weight: bold; margin-bottom: 1.5rem; color: #1f2937;">Frequently Asked Questions</h2>
+    <div class="faq-container">
+        ${faqs.map(faq => `
+        <div class="faq-item" style="margin-bottom: 1.5rem; padding: 1.5rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; background-color: #f9fafb;">
+            <h3 class="faq-question" style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.75rem; color: #374151;">${faq.question}</h3>
+            <p class="faq-answer" style="color: #6b7280; line-height: 1.6;">${faq.answer}</p>
+        </div>
+        `).join('')}
+    </div>
+</section>
+
+<script type="application/ld+json">
+${JSON.stringify(faqSchema, null, 2)}
+</script>`;
+    
+    return faqHTML;
+}
+
 // Helper function to generate image in parallel using DALL-E 3
 async function generateFeaturedImage(title, industry) {
     console.log(`🖼️ Starting parallel DALL-E 3 image generation for "${title}"`);
@@ -928,7 +969,7 @@ app.post('/api/generate/content', async (req, res) => {
                         content: { type: Type.STRING, description: 'Complete blog post content in HTML format.' },
                         wordCount: { type: Type.NUMBER, description: 'Actual word count of the content.' },
                         metaDescription: { type: Type.STRING, description: 'SEO meta description (150-160 characters).' },
-                        faq: {
+                        faqs: {
                             type: Type.ARRAY,
                             items: {
                                 type: Type.OBJECT,
@@ -940,7 +981,7 @@ app.post('/api/generate/content', async (req, res) => {
                             description: 'FAQ section with 3-5 relevant questions and answers.'
                         }
                     },
-                    required: ["content", "wordCount", "metaDescription", "faq"]
+                    required: ["content", "wordCount", "metaDescription", "faqs"]
                 },
             },
         });
@@ -1575,6 +1616,14 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             - DO NOT create or modify URLs - use them exactly as provided
             - Format links as: <a href="EXACT_URL_FROM_LIST">anchor text</a>
             - Minimum 2 internal links, average 5-8 per article
+            
+            FAQ REQUIREMENTS:
+            - Generate 2-8 relevant FAQs based on the blog content
+            - Questions should address common concerns readers might have about the topic
+            - Answers should be comprehensive but concise (2-4 sentences each)
+            - Focus on practical, actionable information
+            - Use industry-specific terminology appropriately
+            - Questions should naturally arise from the blog content and provide additional value
         `;
         
         const contentResponse = await ai.models.generateContent({
@@ -1588,7 +1637,7 @@ app.post('/api/generate/complete-blog', async (req, res) => {
                         content: { type: Type.STRING, description: 'Complete blog post content in HTML format.' },
                         wordCount: { type: Type.NUMBER, description: 'Actual word count of the content.' },
                         metaDescription: { type: Type.STRING, description: 'SEO meta description (150-160 characters).' },
-                        faq: {
+                        faqs: {
                             type: Type.ARRAY,
                             items: {
                                 type: Type.OBJECT,
@@ -1600,7 +1649,7 @@ app.post('/api/generate/complete-blog', async (req, res) => {
                             description: 'FAQ section with 3-5 relevant questions and answers.'
                         }
                     },
-                    required: ["content", "wordCount", "metaDescription", "faq"]
+                    required: ["content", "wordCount", "metaDescription", "faqs"]
                 },
             },
         });
@@ -1610,12 +1659,22 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         // Validate internal links in complete blog content
         validateInternalLinks(contentData.content, internalLinks);
 
-        // Return complete blog post data
+        // Generate FAQ HTML with schema markup
+        const faqHTML = generateFAQHTML(contentData.faqs);
+        
+        // Combine main content with FAQ section
+        const fullContent = contentData.content + faqHTML;
+
+        // Return complete blog post data with FAQs
         res.json({
             topic: topic,
             sources: sources,
             plan: plan,
-            content: contentData,
+            content: {
+                ...contentData,
+                content: fullContent,
+                faqsGenerated: contentData.faqs ? contentData.faqs.length : 0
+            },
             readyToPublish: true
         });
 
@@ -1777,6 +1836,14 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             - DO NOT create or modify URLs - use them exactly as provided
             - Format links as: <a href="EXACT_URL_FROM_LIST">anchor text</a>
             - Minimum 2 internal links, average 5-8 per article
+            
+            FAQ REQUIREMENTS:
+            - Generate 2-8 relevant FAQs based on the blog content
+            - Questions should address common concerns readers might have about the topic
+            - Answers should be comprehensive but concise (2-4 sentences each)
+            - Focus on practical, actionable information
+            - Use industry-specific terminology appropriately
+            - Questions should naturally arise from the blog content and provide additional value
         `;
         
         const contentResponse = await ai.models.generateContent({
@@ -1789,9 +1856,21 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                     properties: {
                         content: { type: Type.STRING, description: 'Complete blog post content in HTML format.' },
                         wordCount: { type: Type.NUMBER, description: 'Actual word count of the content.' },
-                        metaDescription: { type: Type.STRING, description: 'SEO meta description (150-160 characters).' }
+                        metaDescription: { type: Type.STRING, description: 'SEO meta description (150-160 characters).' },
+                        faqs: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    question: { type: Type.STRING, description: 'FAQ question' },
+                                    answer: { type: Type.STRING, description: 'FAQ answer (2-4 sentences)' }
+                                },
+                                required: ["question", "answer"]
+                            },
+                            description: 'Array of 2-8 relevant FAQs'
+                        }
                     },
-                    required: ["content", "wordCount", "metaDescription"]
+                    required: ["content", "wordCount", "metaDescription", "faqs"]
                 },
             },
         });
@@ -1888,10 +1967,16 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             }
         }
 
+        // Generate FAQ HTML with schema markup
+        const faqHTML = generateFAQHTML(contentData.faqs);
+        
+        // Combine main content with FAQ section
+        const fullContent = contentData.content + faqHTML;
+        
         // Prepare post data for draft publication
         const postData = {
             title: plan.title,
-            content: contentData.content,
+            content: fullContent,
             excerpt: contentData.metaDescription || '',
             status: 'draft', // Always draft for review
             tags: tagIds
