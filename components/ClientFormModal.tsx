@@ -88,7 +88,7 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
             </div>
             
             {/* Show website crawl test button if client exists and has website URL */}
-            {client.id && formData.websiteUrl && (
+            {client?.id && formData.websiteUrl && (
                 <WebsiteCrawlTestButton clientId={client.id} websiteUrl={formData.websiteUrl} />
             )}
 
@@ -98,7 +98,7 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
             <InputField label="WordPress App Password" name="wp.appPassword" value={formData.wp?.appPassword || ''} onChange={handleChange} type="password" />
             
             {/* WordPress Test Button - only show if client exists and has WP credentials */}
-            {client && formData.wp?.url && formData.wp?.username && formData.wp?.appPassword && (
+            {client?.id && formData.wp?.url && formData.wp?.username && formData.wp?.appPassword && (
                 <WordPressTestButton clientId={client.id} />
             )}
 
