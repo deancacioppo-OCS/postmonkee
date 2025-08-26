@@ -1148,18 +1148,22 @@ app.post('/api/generate/content', async (req, res) => {
         const internalLinksContext = internalLinks.length > 0 
             ? `\nAvailable Internal Links (choose 2-6 most contextually relevant, ONE link per URL):
                ${internalLinks.map((link, index) => 
-                 `${index + 1}. "${link.title}" 
-                    URL: ${link.url}
+                 `${index + 1}. EXACT URL TO USE: ${link.url}
+                    Page Title: "${link.title}"
+                    What it's about: ${link.description || 'Blog/page content'}
                     Category: ${link.category || 'general'}
                     Keywords: ${link.keywords || 'N/A'}
-                    Description: ${link.description || 'Blog/page content'}
+                    
+                    ➡️ COPY THIS URL EXACTLY: ${link.url} ⬅️
                `).join('\n')}
                
-               CRITICAL LINKING RULES: 
-               - Use EXACT URLs as provided above - DO NOT MODIFY
+               🚨 CRITICAL LINKING RULES: 
+               - COPY THE EXACT URLs SHOWN ABOVE - DO NOT MODIFY, SHORTEN, OR GUESS URLS
+               - Use format: <a href="EXACT_URL_FROM_ABOVE">descriptive anchor text</a>
                - Maximum ONE link per target URL/page - NO EXCEPTIONS
                - NO HOMEPAGE LINKS (/) unless absolutely critical
                - Only link when there is GENUINE topical relevance
+               - If you need a URL not listed above, DO NOT create it - skip that link
                - Be VERY SELECTIVE - 2-4 quality links are better than 6 poor ones
                - Anchor text must PRECISELY represent the linked page content
                - If no pages are truly relevant, use fewer links
@@ -1197,9 +1201,12 @@ app.post('/api/generate/content', async (req, res) => {
               * Be VERY SELECTIVE - only 2-4 truly relevant links, not forced linking
               * Use anchor text that EXACTLY matches what the linked page is about
               * Links must feel NATURAL and provide real value to readers
-              * CRITICAL: Only use the exact URLs listed in the Available Internal Links section
-              * DO NOT create or modify URLs - use them exactly as provided
+              * CRITICAL: COPY the exact URLs listed in the Available Internal Links section - DO NOT GUESS OR MODIFY
+              * DO NOT create, shorten, or modify URLs - use them EXACTLY as provided with full path
+              * NEVER assume what a URL should be - only use URLs explicitly listed above
               * Format links as: <a href="EXACT_URL_FROM_LIST">precise descriptive anchor text</a>
+              * EXAMPLE: If URL is "/services/auto-insurance/" use: <a href="/services/auto-insurance/">auto insurance coverage</a>
+              * WRONG: <a href="/auto-insurance">coverage</a> (don't guess or shorten URLs)
               * If no pages are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
         `;
@@ -1833,18 +1840,22 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         const internalLinksContext = internalLinks.length > 0 
             ? `\nAvailable Internal Links (choose 2-6 most contextually relevant, ONE link per URL):
                ${internalLinks.map((link, index) => 
-                 `${index + 1}. "${link.title}" 
-                    URL: ${link.url}
+                 `${index + 1}. EXACT URL TO USE: ${link.url}
+                    Page Title: "${link.title}"
+                    What it's about: ${link.description || 'Blog/page content'}
                     Category: ${link.category || 'general'}
                     Keywords: ${link.keywords || 'N/A'}
-                    Description: ${link.description || 'Blog/page content'}
+                    
+                    ➡️ COPY THIS URL EXACTLY: ${link.url} ⬅️
                `).join('\n')}
                
-               CRITICAL LINKING RULES: 
-               - Use EXACT URLs as provided above - DO NOT MODIFY
+               🚨 CRITICAL LINKING RULES: 
+               - COPY THE EXACT URLs SHOWN ABOVE - DO NOT MODIFY, SHORTEN, OR GUESS URLS
+               - Use format: <a href="EXACT_URL_FROM_ABOVE">descriptive anchor text</a>
                - Maximum ONE link per target URL/page - NO EXCEPTIONS
                - NO HOMEPAGE LINKS (/) unless absolutely critical
                - Only link when there is GENUINE topical relevance
+               - If you need a URL not listed above, DO NOT create it - skip that link
                - Be VERY SELECTIVE - 2-4 quality links are better than 6 poor ones
                - Anchor text must PRECISELY represent the linked page content
                - If no pages are truly relevant, use fewer links
@@ -1882,9 +1893,12 @@ app.post('/api/generate/complete-blog', async (req, res) => {
               * Be VERY SELECTIVE - only 2-4 truly relevant links, not forced linking
               * Use anchor text that EXACTLY matches what the linked page is about
               * Links must feel NATURAL and provide real value to readers
-              * CRITICAL: Only use the exact URLs listed in the Available Internal Links section
-              * DO NOT create or modify URLs - use them exactly as provided
+              * CRITICAL: COPY the exact URLs listed in the Available Internal Links section - DO NOT GUESS OR MODIFY
+              * DO NOT create, shorten, or modify URLs - use them EXACTLY as provided with full path
+              * NEVER assume what a URL should be - only use URLs explicitly listed above
               * Format links as: <a href="EXACT_URL_FROM_LIST">precise descriptive anchor text</a>
+              * EXAMPLE: If URL is "/services/auto-insurance/" use: <a href="/services/auto-insurance/">auto insurance coverage</a>
+              * WRONG: <a href="/auto-insurance">coverage</a> (don't guess or shorten URLs)
               * If no pages are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
@@ -2106,18 +2120,22 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         const internalLinksContext = internalLinks.length > 0 
             ? `\nAvailable Internal Links (choose 2-6 most contextually relevant, ONE link per URL):
                ${internalLinks.map((link, index) => 
-                 `${index + 1}. "${link.title}" 
-                    URL: ${link.url}
+                 `${index + 1}. EXACT URL TO USE: ${link.url}
+                    Page Title: "${link.title}"
+                    What it's about: ${link.description || 'Blog/page content'}
                     Category: ${link.category || 'general'}
                     Keywords: ${link.keywords || 'N/A'}
-                    Description: ${link.description || 'Blog/page content'}
+                    
+                    ➡️ COPY THIS URL EXACTLY: ${link.url} ⬅️
                `).join('\n')}
                
-               CRITICAL LINKING RULES: 
-               - Use EXACT URLs as provided above - DO NOT MODIFY
+               🚨 CRITICAL LINKING RULES: 
+               - COPY THE EXACT URLs SHOWN ABOVE - DO NOT MODIFY, SHORTEN, OR GUESS URLS
+               - Use format: <a href="EXACT_URL_FROM_ABOVE">descriptive anchor text</a>
                - Maximum ONE link per target URL/page - NO EXCEPTIONS
                - NO HOMEPAGE LINKS (/) unless absolutely critical
                - Only link when there is GENUINE topical relevance
+               - If you need a URL not listed above, DO NOT create it - skip that link
                - Be VERY SELECTIVE - 2-4 quality links are better than 6 poor ones
                - Anchor text must PRECISELY represent the linked page content
                - If no pages are truly relevant, use fewer links
@@ -2155,9 +2173,12 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
               * Be VERY SELECTIVE - only 2-4 truly relevant links, not forced linking
               * Use anchor text that EXACTLY matches what the linked page is about
               * Links must feel NATURAL and provide real value to readers
-              * CRITICAL: Only use the exact URLs listed in the Available Internal Links section
-              * DO NOT create or modify URLs - use them exactly as provided
+              * CRITICAL: COPY the exact URLs listed in the Available Internal Links section - DO NOT GUESS OR MODIFY
+              * DO NOT create, shorten, or modify URLs - use them EXACTLY as provided with full path
+              * NEVER assume what a URL should be - only use URLs explicitly listed above
               * Format links as: <a href="EXACT_URL_FROM_LIST">precise descriptive anchor text</a>
+              * EXAMPLE: If URL is "/services/auto-insurance/" use: <a href="/services/auto-insurance/">auto insurance coverage</a>
+              * WRONG: <a href="/auto-insurance">coverage</a> (don't guess or shorten URLs)
               * If no pages are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
