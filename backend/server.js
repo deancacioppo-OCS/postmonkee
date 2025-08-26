@@ -443,6 +443,71 @@ function validateInternalLinks(content, validLinks) {
     }
 }
 
+// Helper function to get industry-specific authoritative sources
+function getIndustryAuthoritativeSources(industry) {
+    const sources = {
+        'insurance': [
+            'National Association of Insurance Commissioners (naic.org)',
+            'Insurance Information Institute (iii.org)',
+            'A.M. Best Company (ambest.com)',
+            'Insurance Journal (insurancejournal.com)',
+            'PropertyCasualty360 (propertycasualty360.com)'
+        ],
+        'digital marketing': [
+            'Search Engine Journal (searchenginejournal.com)',
+            'Marketing Land (marketingland.com)',
+            'HubSpot Blog (blog.hubspot.com)',
+            'Content Marketing Institute (contentmarketinginstitute.com)',
+            'Google Ads Help (support.google.com/google-ads)'
+        ],
+        'roofing': [
+            'National Roofing Contractors Association (nrca.net)',
+            'Roofing Contractor Magazine (roofingcontractor.com)',
+            'International Building Code (iccsafe.org)',
+            'OSHA (osha.gov)',
+            'National Institute for Standards and Technology (nist.gov)'
+        ],
+        'healthcare': [
+            'Centers for Disease Control and Prevention (cdc.gov)',
+            'World Health Organization (who.int)',
+            'National Institutes of Health (nih.gov)',
+            'American Medical Association (ama-assn.org)',
+            'Healthcare Financial Management Association (hfma.org)'
+        ],
+        'real estate': [
+            'National Association of Realtors (nar.realtor)',
+            'Realtor.com (realtor.com)',
+            'U.S. Census Bureau (census.gov)',
+            'Federal Housing Administration (hud.gov)',
+            'Mortgage Bankers Association (mba.org)'
+        ],
+        'technology': [
+            'TechCrunch (techcrunch.com)',
+            'Wired (wired.com)',
+            'IEEE (ieee.org)',
+            'MIT Technology Review (technologyreview.com)',
+            'Stack Overflow (stackoverflow.com)'
+        ],
+        'finance': [
+            'Securities and Exchange Commission (sec.gov)',
+            'Federal Reserve (federalreserve.gov)',
+            'Investopedia (investopedia.com)',
+            'Bloomberg (bloomberg.com)',
+            'Financial Times (ft.com)'
+        ],
+        'general': [
+            'Wikipedia (en.wikipedia.org)',
+            'Reuters (reuters.com)',
+            'BBC News (bbc.com/news)',
+            'Wall Street Journal (wsj.com)',
+            'Associated Press (apnews.com)'
+        ]
+    };
+    
+    const industryKey = industry.toLowerCase();
+    return sources[industryKey] || sources['general'];
+}
+
 // Helper function to validate external links
 function validateExternalLinks(content) {
     console.log('🔗 Validating external links in content...');
@@ -478,9 +543,26 @@ function validateExternalLinks(content) {
         console.log(`✅ External link count is optimal: ${externalLinks.length} links`);
     }
     
-    // Log external links for debugging
+    // Analyze link quality and legitimacy
     externalLinks.forEach((link, index) => {
-        console.log(`🔗 External Link ${index + 1}: "${link.anchorText}" → ${link.url}`);
+        const url = link.url.toLowerCase();
+        let linkQuality = 'unknown';
+        
+        if (url.includes('wikipedia.org')) {
+            linkQuality = 'Wikipedia (reliable general source)';
+        } else if (url.includes('.gov')) {
+            linkQuality = 'Government site (highly authoritative)';
+        } else if (url.includes('.edu')) {
+            linkQuality = 'Educational institution (academic source)';
+        } else if (url.includes('reuters.com') || url.includes('bbc.com') || url.includes('wsj.com')) {
+            linkQuality = 'Major news publication (credible)';
+        } else if (url.includes('naic.org') || url.includes('iii.org') || url.includes('nrca.net')) {
+            linkQuality = 'Industry association (authoritative)';
+        } else {
+            linkQuality = 'Other source (verify legitimacy)';
+        }
+        
+        console.log(`🔗 External Link ${index + 1}: "${link.anchorText}" → ${link.url} [${linkQuality}]`);
     });
     
     return externalLinks;
@@ -1664,15 +1746,28 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             - Minimum 2 internal links, average 5-8 per article
             
             EXTERNAL LINKS REQUIREMENTS:
-            - Include 2-8 relevant external links to authoritative sources
+            - Include 2-8 relevant external links to REAL, LEGITIMATE websites only
+            - CRITICAL: Only reference actual websites that exist and provide genuine information
+            - Use well-known authoritative sources such as:
+              * Wikipedia (en.wikipedia.org) for general information and definitions
+              * Government sites (.gov domains) for official statistics and regulations
+              * Industry associations and professional organizations
+              * Major news publications (Reuters, BBC, Wall Street Journal, etc.)
+              * Established research institutions and universities (.edu domains)
+              * Recognized industry publications and trade websites
             - Links must be contextually integrated into the content naturally
-            - Use descriptive, keyword-rich anchor text (not "click here" or "read more")
-            - Focus on authoritative sources: industry publications, research papers, government sites, established organizations
-            - Links should provide additional information, statistics, or expert opinions that support your points
+            - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
             - Format: <a href="URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
-            - Ensure links enhance credibility and provide genuine value to readers
+            - NEVER create fictional URLs or hypothetical websites
+            - Only link to sources that genuinely provide the information referenced in your anchor text
+            - EXAMPLES OF GOOD EXTERNAL LINKS:
+              * "According to the <a href=\"https://en.wikipedia.org/wiki/Insurance\" target=\"_blank\" rel=\"noopener noreferrer\">Wikipedia definition of insurance</a>, risk transfer is fundamental..."
+              * "The <a href=\"https://www.naic.org\" target=\"_blank\" rel=\"noopener noreferrer\">National Association of Insurance Commissioners</a> reports that..."
+              * "Recent <a href=\"https://www.reuters.com\" target=\"_blank\" rel=\"noopener noreferrer\">Reuters analysis</a> shows industry trends..."
             - Distribute links throughout the article naturally within relevant sentences
-            - Include recent sources when possible (within last 2-3 years)
+            - When in doubt, use well-established sources like Wikipedia for general concepts
+            - SUGGESTED AUTHORITATIVE SOURCES FOR ${client.industry.toUpperCase()} INDUSTRY:
+              ${getIndustryAuthoritativeSources(client.industry).map(source => `* ${source}`).join('\n              ')}
             
             FAQ REQUIREMENTS:
             - Generate 2-8 relevant FAQs based on the blog content
@@ -1898,15 +1993,28 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             - Minimum 2 internal links, average 5-8 per article
             
             EXTERNAL LINKS REQUIREMENTS:
-            - Include 2-8 relevant external links to authoritative sources
+            - Include 2-8 relevant external links to REAL, LEGITIMATE websites only
+            - CRITICAL: Only reference actual websites that exist and provide genuine information
+            - Use well-known authoritative sources such as:
+              * Wikipedia (en.wikipedia.org) for general information and definitions
+              * Government sites (.gov domains) for official statistics and regulations
+              * Industry associations and professional organizations
+              * Major news publications (Reuters, BBC, Wall Street Journal, etc.)
+              * Established research institutions and universities (.edu domains)
+              * Recognized industry publications and trade websites
             - Links must be contextually integrated into the content naturally
-            - Use descriptive, keyword-rich anchor text (not "click here" or "read more")
-            - Focus on authoritative sources: industry publications, research papers, government sites, established organizations
-            - Links should provide additional information, statistics, or expert opinions that support your points
+            - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
             - Format: <a href="URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
-            - Ensure links enhance credibility and provide genuine value to readers
+            - NEVER create fictional URLs or hypothetical websites
+            - Only link to sources that genuinely provide the information referenced in your anchor text
+            - EXAMPLES OF GOOD EXTERNAL LINKS:
+              * "According to the <a href=\"https://en.wikipedia.org/wiki/Insurance\" target=\"_blank\" rel=\"noopener noreferrer\">Wikipedia definition of insurance</a>, risk transfer is fundamental..."
+              * "The <a href=\"https://www.naic.org\" target=\"_blank\" rel=\"noopener noreferrer\">National Association of Insurance Commissioners</a> reports that..."
+              * "Recent <a href=\"https://www.reuters.com\" target=\"_blank\" rel=\"noopener noreferrer\">Reuters analysis</a> shows industry trends..."
             - Distribute links throughout the article naturally within relevant sentences
-            - Include recent sources when possible (within last 2-3 years)
+            - When in doubt, use well-established sources like Wikipedia for general concepts
+            - SUGGESTED AUTHORITATIVE SOURCES FOR ${client.industry.toUpperCase()} INDUSTRY:
+              ${getIndustryAuthoritativeSources(client.industry).map(source => `* ${source}`).join('\n              ')}
             
             FAQ REQUIREMENTS:
             - Generate 2-8 relevant FAQs based on the blog content
