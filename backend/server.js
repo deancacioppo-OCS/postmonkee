@@ -626,6 +626,12 @@ function replaceGuessedURLsWithReal(content, validLinks) {
             continue;
         }
         
+        // Skip placeholder/invalid URLs that shouldn't be replaced
+        if (guessedUrl === '#' || guessedUrl === '' || guessedUrl === 'javascript:void(0)') {
+            console.log(`⚠️ Skipping placeholder/invalid URL: ${guessedUrl}`);
+            continue;
+        }
+        
         // Check if the guessed URL is already correct
         const isAlreadyCorrect = validLinks.some(link => link.url === guessedUrl);
         if (isAlreadyCorrect) {
@@ -700,10 +706,12 @@ function findBestURLMatch(anchorText, guessedUrl, validLinks) {
     const sortedScores = scores.sort((a, b) => b.score - a.score);
     const bestMatch = sortedScores[0];
     
-    // Only return if score is above minimum threshold (0.1 = 10% similarity)
-    if (bestMatch && bestMatch.score > 0.1) {
+    // Only return if score is above minimum threshold (0.3 = 30% similarity)
+    if (bestMatch && bestMatch.score > 0.3) {
         return bestMatch;
     }
+    
+    console.log(`❌ Best match "${bestMatch?.url}" score too low: ${bestMatch?.score?.toFixed(2)} (need >0.3)`);
     
     return null;
 }
@@ -866,10 +874,17 @@ async function crawlWebsiteForClient(clientId, websiteUrl) {
                 try {
                     const urlObj = new URL(cleanUrl);
                     cleanUrl = urlObj.pathname;
+                    console.log(`🔧 Extracted path from absolute URL: ${page.url} → ${cleanUrl}`);
                 } catch (e) {
                     console.warn(`⚠️ Invalid URL format: ${cleanUrl}, skipping`);
                     return null;
                 }
+            }
+            
+            // Clean WordPress post URLs (/?p=12345) to homepage
+            if (cleanUrl.includes('?p=') || cleanUrl === '/' || cleanUrl === '') {
+                cleanUrl = '/';
+                console.log(`🏠 WordPress post/homepage URL converted to: ${page.url} → ${cleanUrl}`);
             }
             
             // Ensure URL starts with /
@@ -877,8 +892,12 @@ async function crawlWebsiteForClient(clientId, websiteUrl) {
                 cleanUrl = '/' + cleanUrl;
             }
             
-            // Log the cleaned URL
-            console.log(`🔗 Cleaned URL: ${page.url} → ${cleanUrl}`);
+            // Skip if this would create a duplicate homepage entry
+            if (cleanUrl === '/' && page.title && page.title.toLowerCase().includes('home')) {
+                console.log(`🔗 Cleaned URL: ${page.url} → ${cleanUrl}`);
+            } else {
+                console.log(`🔗 Cleaned URL: ${page.url} → ${cleanUrl}`);
+            }
             
             return {
                 ...page,
@@ -1769,6 +1788,68 @@ app.get('/api/debug/internal-links/:clientId', async (req, res) => {
             error: 'Failed to fetch debug info', 
             details: error.message 
         });
+    }
+});
+
+// Clean up existing database URLs that may have absolute URLs
+app.post('/api/admin/cleanup-urls', async (req, res) => {
+    try {
+        console.log('🧹 Starting database URL cleanup...');
+        
+        // Get all URLs that need cleaning (contain http or are WordPress posts)
+        const result = await pool.query(`
+            SELECT client_id, url, title, description, category, keywords 
+            FROM sitemap_urls 
+            WHERE url LIKE 'http%' OR url LIKE '%?p=%'
+        `);
+        
+        console.log(`Found ${result.rows.length} URLs that need cleaning`);
+        
+        let cleaned = 0;
+        let removed = 0;
+        
+        for (const row of result.rows) {
+            let cleanUrl = row.url;
+            
+            // Extract path from absolute URL
+            if (cleanUrl.includes('://')) {
+                try {
+                    const urlObj = new URL(cleanUrl);
+                    cleanUrl = urlObj.pathname;
+                } catch (e) {
+                    console.log(`❌ Removing invalid URL: ${cleanUrl}`);
+                    await pool.query('DELETE FROM sitemap_urls WHERE client_id = $1 AND url = $2', [row.client_id, row.url]);
+                    removed++;
+                    continue;
+                }
+            }
+            
+            // Convert WordPress posts to homepage
+            if (cleanUrl.includes('?p=') || cleanUrl === '/' || cleanUrl === '') {
+                cleanUrl = '/';
+            }
+            
+            // Update the URL
+            if (cleanUrl !== row.url) {
+                await pool.query(
+                    'UPDATE sitemap_urls SET url = $1 WHERE client_id = $2 AND url = $3',
+                    [cleanUrl, row.client_id, row.url]
+                );
+                console.log(`🔧 Cleaned: ${row.url} → ${cleanUrl}`);
+                cleaned++;
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: `Database cleanup complete: ${cleaned} URLs cleaned, ${removed} invalid URLs removed`,
+            cleaned: cleaned,
+            removed: removed
+        });
+        
+    } catch (error) {
+        console.error('Error cleaning up URLs:', error);
+        res.status(500).json({ error: 'Failed to cleanup URLs', details: error.message });
     }
 });
 
