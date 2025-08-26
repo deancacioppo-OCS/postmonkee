@@ -596,6 +596,137 @@ function getIndustryAuthoritativeSources(industry) {
     return sources[industryKey] || sources['general'];
 }
 
+// Helper function to replace Gemini's guessed URLs with actual URLs
+function replaceGuessedURLsWithReal(content, validLinks) {
+    if (!validLinks || validLinks.length === 0) {
+        console.log('🔗 No valid links available for URL replacement');
+        return content;
+    }
+    
+    console.log('🔄 Starting URL replacement process...');
+    console.log(`📋 Available real URLs: ${validLinks.map(l => l.url).join(', ')}`);
+    
+    // Extract all internal links that Gemini created
+    const internalLinkRegex = /<a\s+[^>]*href\s*=\s*["']([^"']+)["'][^>]*(?!.*target\s*=\s*["']_blank["'])[^>]*>(.*?)<\/a>/gi;
+    let processedContent = content;
+    let match;
+    let replacements = [];
+    
+    // Reset regex
+    internalLinkRegex.lastIndex = 0;
+    
+    while ((match = internalLinkRegex.exec(content)) !== null) {
+        const guessedUrl = match[1];
+        const anchorText = match[2];
+        const fullLinkTag = match[0];
+        
+        // Skip if this is already a valid URL (external links or correct internal links)
+        if (guessedUrl.includes('http://') || guessedUrl.includes('https://') || 
+            guessedUrl.includes('mailto:') || guessedUrl.includes('tel:')) {
+            continue;
+        }
+        
+        // Check if the guessed URL is already correct
+        const isAlreadyCorrect = validLinks.some(link => link.url === guessedUrl);
+        if (isAlreadyCorrect) {
+            console.log(`✅ URL already correct: ${guessedUrl}`);
+            continue;
+        }
+        
+        // Find the best matching real URL
+        const bestMatch = findBestURLMatch(anchorText, guessedUrl, validLinks);
+        
+        if (bestMatch) {
+            // Create the corrected link tag
+            const correctedLinkTag = fullLinkTag.replace(guessedUrl, bestMatch.url);
+            
+            // Replace in content
+            processedContent = processedContent.replace(fullLinkTag, correctedLinkTag);
+            
+            replacements.push({
+                original: guessedUrl,
+                corrected: bestMatch.url,
+                anchorText: anchorText,
+                score: bestMatch.score
+            });
+            
+            console.log(`🔄 REPLACED: "${guessedUrl}" → "${bestMatch.url}" (score: ${bestMatch.score.toFixed(2)}) for anchor: "${anchorText}"`);
+        } else {
+            console.log(`⚠️ No good match found for: "${guessedUrl}" with anchor: "${anchorText}"`);
+        }
+    }
+    
+    console.log(`🎯 URL Replacement Summary: ${replacements.length} URLs replaced`);
+    if (replacements.length > 0) {
+        replacements.forEach(r => console.log(`   ${r.original} → ${r.corrected}`));
+    }
+    
+    return processedContent;
+}
+
+// Helper function to find the best matching URL based on anchor text and URL similarity
+function findBestURLMatch(anchorText, guessedUrl, validLinks) {
+    if (!validLinks || validLinks.length === 0) return null;
+    
+    const scores = validLinks.map(link => {
+        let score = 0;
+        
+        // Score based on title similarity to anchor text
+        if (link.title) {
+            score += calculateTextSimilarity(anchorText.toLowerCase(), link.title.toLowerCase()) * 0.4;
+        }
+        
+        // Score based on URL path similarity
+        score += calculateTextSimilarity(guessedUrl.toLowerCase(), link.url.toLowerCase()) * 0.3;
+        
+        // Score based on keywords match
+        if (link.keywords && link.keywords !== 'N/A') {
+            score += calculateTextSimilarity(anchorText.toLowerCase(), link.keywords.toLowerCase()) * 0.2;
+        }
+        
+        // Score based on description match  
+        if (link.description) {
+            score += calculateTextSimilarity(anchorText.toLowerCase(), link.description.toLowerCase()) * 0.1;
+        }
+        
+        return {
+            url: link.url,
+            title: link.title,
+            score: score
+        };
+    });
+    
+    // Sort by score and return the best match if it's above threshold
+    const sortedScores = scores.sort((a, b) => b.score - a.score);
+    const bestMatch = sortedScores[0];
+    
+    // Only return if score is above minimum threshold (0.1 = 10% similarity)
+    if (bestMatch && bestMatch.score > 0.1) {
+        return bestMatch;
+    }
+    
+    return null;
+}
+
+// Helper function to calculate text similarity (basic implementation)
+function calculateTextSimilarity(text1, text2) {
+    // Convert to lowercase and split into words
+    const words1 = text1.toLowerCase().split(/\s+/);
+    const words2 = text2.toLowerCase().split(/\s+/);
+    
+    // Count matching words
+    let matches = 0;
+    words1.forEach(word => {
+        if (words2.some(w => w.includes(word) || word.includes(w))) {
+            matches++;
+        }
+    });
+    
+    // Calculate similarity as percentage of matching words
+    const maxLength = Math.max(words1.length, words2.length);
+    return maxLength > 0 ? matches / maxLength : 0;
+}
+
 // Helper function to validate external links
 function validateExternalLinks(content) {
     console.log('🔗 Validating external links in content...');
@@ -1286,6 +1417,10 @@ app.post('/api/generate/content', async (req, res) => {
         });
         
         const contentData = JSON.parse(response.text);
+        
+        // CRITICAL: Replace any guessed URLs with actual URLs before validation
+        console.log('🔧 Applying URL replacement to fix any guessed URLs...');
+        contentData.content = replaceGuessedURLsWithReal(contentData.content, internalLinks);
         
         // Validate internal links in generated content
         validateInternalLinks(contentData.content, internalLinks);
@@ -2016,6 +2151,10 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         
         const contentData = JSON.parse(contentResponse.text);
 
+        // CRITICAL: Replace any guessed URLs with actual URLs before validation
+        console.log('🔧 Applying URL replacement to complete blog content...');
+        contentData.content = replaceGuessedURLsWithReal(contentData.content, internalLinks);
+        
         // Validate internal links in complete blog content
         validateInternalLinks(contentData.content, internalLinks);
         
@@ -2298,6 +2437,10 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         
         const contentData = JSON.parse(contentResponse.text);
 
+        // CRITICAL: Replace any guessed URLs with actual URLs before validation
+        console.log('🔧 Applying URL replacement to lucky blog content...');
+        contentData.content = replaceGuessedURLsWithReal(contentData.content, internalLinks);
+        
         // Validate internal links in lucky blog content
         validateInternalLinks(contentData.content, internalLinks);
         
