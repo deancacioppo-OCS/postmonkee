@@ -451,9 +451,19 @@ function validateInternalLinks(content, validLinks) {
     internalLinks.forEach((link, index) => {
         const isDuplicate = duplicateUrls.includes(link.url);
         const isValid = validUrls.includes(link.url);
-        const status = !isValid ? '[INVALID URL]' : isDuplicate ? '[DUPLICATE]' : '[VALID]';
+        const isHomepage = link.url === '/' || link.url === '' || link.url.endsWith('/');
+        
+        let status = '[VALID]';
+        if (!isValid) status = '[INVALID URL]';
+        else if (isDuplicate) status = '[DUPLICATE]';
+        else if (isHomepage) status = '[HOMEPAGE LINK - AVOID]';
         
         console.log(`🔗 Internal Link ${index + 1}: "${link.anchorText}" → ${link.url} ${status}`);
+        
+        if (isHomepage) {
+            console.warn(`⚠️ Homepage link detected: "${link.anchorText}" → ${link.url}`);
+            console.warn(`💡 Avoid linking to homepage unless absolutely necessary`);
+        }
     });
     
     // Provide warnings and feedback
@@ -592,26 +602,37 @@ function validateExternalLinks(content) {
     }
     
     // Analyze link quality and legitimacy
+    let wikipediaCount = 0;
+    
     externalLinks.forEach((link, index) => {
         const url = link.url.toLowerCase();
         let linkQuality = 'unknown';
         
         if (url.includes('wikipedia.org')) {
-            linkQuality = 'Wikipedia (reliable general source)';
+            wikipediaCount++;
+            linkQuality = 'Wikipedia (should be last resort only)';
         } else if (url.includes('.gov')) {
             linkQuality = 'Government site (highly authoritative)';
         } else if (url.includes('.edu')) {
             linkQuality = 'Educational institution (academic source)';
         } else if (url.includes('reuters.com') || url.includes('bbc.com') || url.includes('wsj.com')) {
             linkQuality = 'Major news publication (credible)';
-        } else if (url.includes('naic.org') || url.includes('iii.org') || url.includes('nrca.net')) {
-            linkQuality = 'Industry association (authoritative)';
+        } else if (url.includes('naic.org') || url.includes('iii.org') || url.includes('nrca.net') || url.includes('osha.gov')) {
+            linkQuality = 'Industry association (excellent choice)';
         } else {
             linkQuality = 'Other source (verify legitimacy)';
         }
         
         console.log(`🔗 External Link ${index + 1}: "${link.anchorText}" → ${link.url} [${linkQuality}]`);
     });
+    
+    // Warn about Wikipedia overuse
+    if (wikipediaCount > 1) {
+        console.warn(`⚠️ Too many Wikipedia links (${wikipediaCount}) - Wikipedia should be last resort only`);
+        console.warn(`💡 Prioritize industry-specific authoritative sources instead`);
+    } else if (wikipediaCount === 1 && externalLinks.length <= 3) {
+        console.warn(`⚠️ Wikipedia used but better industry sources may be available`);
+    }
     
     return externalLinks;
 }
@@ -1104,11 +1125,15 @@ app.post('/api/generate/content', async (req, res) => {
                     Description: ${link.description || 'Blog/page content'}
                `).join('\n')}
                
-               IMPORTANT: 
-               - Use EXACT URLs as provided above
-               - Maximum ONE link per target URL/page
-               - Choose links that genuinely relate to your content topics
-               - Anchor text should accurately represent the linked page's content`
+               CRITICAL LINKING RULES: 
+               - Use EXACT URLs as provided above - DO NOT MODIFY
+               - Maximum ONE link per target URL/page - NO EXCEPTIONS
+               - NO HOMEPAGE LINKS (/) unless absolutely critical
+               - Only link when there is GENUINE topical relevance
+               - Be VERY SELECTIVE - 2-4 quality links are better than 6 poor ones
+               - Anchor text must PRECISELY represent the linked page content
+               - If no pages are truly relevant, use fewer links
+               - QUALITY OVER QUANTITY - don't force irrelevant links`
             : '\nNo internal links available yet - do not create any internal links.';
 
         const prompt = `
@@ -1133,15 +1158,17 @@ app.post('/api/generate/content', async (req, res) => {
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
             - INTERNAL LINKING RULES:
-              * MAXIMUM ONE internal link per target page/blog - no duplicate linking to the same URL
-              * Only link to pages/blogs that are contextually relevant to your current topic
-              * Use anchor text that ACCURATELY represents the content of the page you're linking to
-              * Links must flow naturally within sentences and provide genuine value
-              * Choose 2-6 most relevant pages from the available internal links
+              * CRITICAL: MAXIMUM ONE internal link per target URL - NEVER link to the same page twice
+              * CRITICAL: NO HOMEPAGE LINKS - Do not link to the homepage (/) unless absolutely necessary
+              * Only link when there is a GENUINE contextual connection to the topic being discussed
+              * Be VERY SELECTIVE - only 2-4 truly relevant links, not forced linking
+              * Use anchor text that EXACTLY matches what the linked page is about
+              * Links must feel NATURAL and provide real value to readers
               * CRITICAL: Only use the exact URLs listed in the Available Internal Links section
               * DO NOT create or modify URLs - use them exactly as provided
-              * Format links as: <a href="EXACT_URL_FROM_LIST">accurate descriptive anchor text</a>
-              * Ensure each link genuinely relates to and supports the current paragraph's topic
+              * Format links as: <a href="EXACT_URL_FROM_LIST">precise descriptive anchor text</a>
+              * If no pages are genuinely relevant to your topic, use fewer links or none
+              * Quality over quantity - better to have 2 perfect links than 6 poor ones
         `;
         
         const response = await ai.models.generateContent({
@@ -1780,11 +1807,15 @@ app.post('/api/generate/complete-blog', async (req, res) => {
                     Description: ${link.description || 'Blog/page content'}
                `).join('\n')}
                
-               IMPORTANT: 
-               - Use EXACT URLs as provided above
-               - Maximum ONE link per target URL/page
-               - Choose links that genuinely relate to your content topics
-               - Anchor text should accurately represent the linked page's content`
+               CRITICAL LINKING RULES: 
+               - Use EXACT URLs as provided above - DO NOT MODIFY
+               - Maximum ONE link per target URL/page - NO EXCEPTIONS
+               - NO HOMEPAGE LINKS (/) unless absolutely critical
+               - Only link when there is GENUINE topical relevance
+               - Be VERY SELECTIVE - 2-4 quality links are better than 6 poor ones
+               - Anchor text must PRECISELY represent the linked page content
+               - If no pages are truly relevant, use fewer links
+               - QUALITY OVER QUANTITY - don't force irrelevant links`
             : '\nNo internal links available yet - do not create any internal links.';
 
         // Step 3: Generate Complete Blog Post
@@ -1809,39 +1840,45 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
             - INTERNAL LINKING RULES:
-              * MAXIMUM ONE internal link per target page/blog - no duplicate linking to the same URL
-              * Only link to pages/blogs that are contextually relevant to your current topic
-              * Use anchor text that ACCURATELY represents the content of the page you're linking to
-              * Links must flow naturally within sentences and provide genuine value
-              * Choose 2-6 most relevant pages from the available internal links
+              * CRITICAL: MAXIMUM ONE internal link per target URL - NEVER link to the same page twice
+              * CRITICAL: NO HOMEPAGE LINKS - Do not link to the homepage (/) unless absolutely necessary
+              * Only link when there is a GENUINE contextual connection to the topic being discussed
+              * Be VERY SELECTIVE - only 2-4 truly relevant links, not forced linking
+              * Use anchor text that EXACTLY matches what the linked page is about
+              * Links must feel NATURAL and provide real value to readers
               * CRITICAL: Only use the exact URLs listed in the Available Internal Links section
               * DO NOT create or modify URLs - use them exactly as provided
-              * Format links as: <a href="EXACT_URL_FROM_LIST">accurate descriptive anchor text</a>
-              * Ensure each link genuinely relates to and supports the current paragraph's topic
+              * Format links as: <a href="EXACT_URL_FROM_LIST">precise descriptive anchor text</a>
+              * If no pages are genuinely relevant to your topic, use fewer links or none
+              * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
             EXTERNAL LINKS REQUIREMENTS:
             - Include 2-8 relevant external links to REAL, LEGITIMATE websites only
             - CRITICAL: Only reference actual websites that exist and provide genuine information
-            - Use well-known authoritative sources such as:
-              * Wikipedia (en.wikipedia.org) for general information and definitions
+            - PRIORITIZE INDUSTRY-SPECIFIC AUTHORITATIVE SOURCES:
               * Government sites (.gov domains) for official statistics and regulations
-              * Industry associations and professional organizations
+              * Industry associations and professional organizations (HIGHEST PRIORITY)
               * Major news publications (Reuters, BBC, Wall Street Journal, etc.)
               * Established research institutions and universities (.edu domains)
               * Recognized industry publications and trade websites
+              * Wikipedia (en.wikipedia.org) ONLY as absolute last resort for basic definitions
             - Links must be contextually integrated into the content naturally
             - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
             - Format: <a href="URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
             - NEVER create fictional URLs or hypothetical websites
             - Only link to sources that genuinely provide the information referenced in your anchor text
-            - EXAMPLES OF GOOD EXTERNAL LINKS:
-              * "According to the <a href=\"https://en.wikipedia.org/wiki/Insurance\" target=\"_blank\" rel=\"noopener noreferrer\">Wikipedia definition of insurance</a>, risk transfer is fundamental..."
+            - EXAMPLES OF GOOD EXTERNAL LINKS (prioritize industry sources):
               * "The <a href=\"https://www.naic.org\" target=\"_blank\" rel=\"noopener noreferrer\">National Association of Insurance Commissioners</a> reports that..."
+              * "According to <a href=\"https://www.iii.org\" target=\"_blank\" rel=\"noopener noreferrer\">Insurance Information Institute data</a>, claims have increased..."
               * "Recent <a href=\"https://www.reuters.com\" target=\"_blank\" rel=\"noopener noreferrer\">Reuters analysis</a> shows industry trends..."
+              * "The <a href=\"https://www.osha.gov\" target=\"_blank\" rel=\"noopener noreferrer\">Occupational Safety and Health Administration</a> recommends..."
+            - AVOID: Multiple Wikipedia links, generic definitions, irrelevant sources
             - Distribute links throughout the article naturally within relevant sentences
-            - When in doubt, use well-established sources like Wikipedia for general concepts
-            - SUGGESTED AUTHORITATIVE SOURCES FOR ${client.industry.toUpperCase()} INDUSTRY:
-              ${getIndustryAuthoritativeSources(client.industry).map(source => `* ${source}`).join('\n              ')}
+            - AVOID Wikipedia unless no other source exists for basic definitions
+            - PRIORITIZE THESE AUTHORITATIVE SOURCES FOR ${client.industry.toUpperCase()} INDUSTRY:
+              ${getIndustryAuthoritativeSources(client.industry).map(source => `* ${source} (USE THESE FIRST)`).join('\n              ')}
+            - USE THESE INDUSTRY SOURCES BEFORE considering general sources like Wikipedia
+            - Each external link should reference specific information, studies, or expert opinions
             
             FAQ REQUIREMENTS:
             - Generate 2-8 relevant FAQs based on the blog content
@@ -2040,11 +2077,15 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                     Description: ${link.description || 'Blog/page content'}
                `).join('\n')}
                
-               IMPORTANT: 
-               - Use EXACT URLs as provided above
-               - Maximum ONE link per target URL/page
-               - Choose links that genuinely relate to your content topics
-               - Anchor text should accurately represent the linked page's content`
+               CRITICAL LINKING RULES: 
+               - Use EXACT URLs as provided above - DO NOT MODIFY
+               - Maximum ONE link per target URL/page - NO EXCEPTIONS
+               - NO HOMEPAGE LINKS (/) unless absolutely critical
+               - Only link when there is GENUINE topical relevance
+               - Be VERY SELECTIVE - 2-4 quality links are better than 6 poor ones
+               - Anchor text must PRECISELY represent the linked page content
+               - If no pages are truly relevant, use fewer links
+               - QUALITY OVER QUANTITY - don't force irrelevant links`
             : '\nNo internal links available yet - do not create any internal links.';
 
         // Step 4: Generate Complete Blog Content
@@ -2069,39 +2110,45 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
             - INTERNAL LINKING RULES:
-              * MAXIMUM ONE internal link per target page/blog - no duplicate linking to the same URL
-              * Only link to pages/blogs that are contextually relevant to your current topic
-              * Use anchor text that ACCURATELY represents the content of the page you're linking to
-              * Links must flow naturally within sentences and provide genuine value
-              * Choose 2-6 most relevant pages from the available internal links
+              * CRITICAL: MAXIMUM ONE internal link per target URL - NEVER link to the same page twice
+              * CRITICAL: NO HOMEPAGE LINKS - Do not link to the homepage (/) unless absolutely necessary
+              * Only link when there is a GENUINE contextual connection to the topic being discussed
+              * Be VERY SELECTIVE - only 2-4 truly relevant links, not forced linking
+              * Use anchor text that EXACTLY matches what the linked page is about
+              * Links must feel NATURAL and provide real value to readers
               * CRITICAL: Only use the exact URLs listed in the Available Internal Links section
               * DO NOT create or modify URLs - use them exactly as provided
-              * Format links as: <a href="EXACT_URL_FROM_LIST">accurate descriptive anchor text</a>
-              * Ensure each link genuinely relates to and supports the current paragraph's topic
+              * Format links as: <a href="EXACT_URL_FROM_LIST">precise descriptive anchor text</a>
+              * If no pages are genuinely relevant to your topic, use fewer links or none
+              * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
             EXTERNAL LINKS REQUIREMENTS:
             - Include 2-8 relevant external links to REAL, LEGITIMATE websites only
             - CRITICAL: Only reference actual websites that exist and provide genuine information
-            - Use well-known authoritative sources such as:
-              * Wikipedia (en.wikipedia.org) for general information and definitions
+            - PRIORITIZE INDUSTRY-SPECIFIC AUTHORITATIVE SOURCES:
               * Government sites (.gov domains) for official statistics and regulations
-              * Industry associations and professional organizations
+              * Industry associations and professional organizations (HIGHEST PRIORITY)
               * Major news publications (Reuters, BBC, Wall Street Journal, etc.)
               * Established research institutions and universities (.edu domains)
               * Recognized industry publications and trade websites
+              * Wikipedia (en.wikipedia.org) ONLY as absolute last resort for basic definitions
             - Links must be contextually integrated into the content naturally
             - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
             - Format: <a href="URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
             - NEVER create fictional URLs or hypothetical websites
             - Only link to sources that genuinely provide the information referenced in your anchor text
-            - EXAMPLES OF GOOD EXTERNAL LINKS:
-              * "According to the <a href=\"https://en.wikipedia.org/wiki/Insurance\" target=\"_blank\" rel=\"noopener noreferrer\">Wikipedia definition of insurance</a>, risk transfer is fundamental..."
+            - EXAMPLES OF GOOD EXTERNAL LINKS (prioritize industry sources):
               * "The <a href=\"https://www.naic.org\" target=\"_blank\" rel=\"noopener noreferrer\">National Association of Insurance Commissioners</a> reports that..."
+              * "According to <a href=\"https://www.iii.org\" target=\"_blank\" rel=\"noopener noreferrer\">Insurance Information Institute data</a>, claims have increased..."
               * "Recent <a href=\"https://www.reuters.com\" target=\"_blank\" rel=\"noopener noreferrer\">Reuters analysis</a> shows industry trends..."
+              * "The <a href=\"https://www.osha.gov\" target=\"_blank\" rel=\"noopener noreferrer\">Occupational Safety and Health Administration</a> recommends..."
+            - AVOID: Multiple Wikipedia links, generic definitions, irrelevant sources
             - Distribute links throughout the article naturally within relevant sentences
-            - When in doubt, use well-established sources like Wikipedia for general concepts
-            - SUGGESTED AUTHORITATIVE SOURCES FOR ${client.industry.toUpperCase()} INDUSTRY:
-              ${getIndustryAuthoritativeSources(client.industry).map(source => `* ${source}`).join('\n              ')}
+            - AVOID Wikipedia unless no other source exists for basic definitions
+            - PRIORITIZE THESE AUTHORITATIVE SOURCES FOR ${client.industry.toUpperCase()} INDUSTRY:
+              ${getIndustryAuthoritativeSources(client.industry).map(source => `* ${source} (USE THESE FIRST)`).join('\n              ')}
+            - USE THESE INDUSTRY SOURCES BEFORE considering general sources like Wikipedia
+            - Each external link should reference specific information, studies, or expert opinions
             
             FAQ REQUIREMENTS:
             - Generate 2-8 relevant FAQs based on the blog content
