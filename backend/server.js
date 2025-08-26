@@ -418,29 +418,77 @@ function validateInternalLinks(content, validLinks) {
     if (!validLinks.length) return { valid: true, message: 'No internal links to validate' };
     
     const validUrls = validLinks.map(link => link.url);
-    const linkMatches = content.match(/href="([^"]+)"/g) || [];
-    const extractedUrls = linkMatches.map(match => match.replace(/href="([^"]+)"/, '$1'));
     
-    const invalidUrls = extractedUrls.filter(url => 
-        url.startsWith('http') && // Only check external URLs
-        !validUrls.includes(url) && 
-        !url.includes('mailto:') && // Ignore email links
-        !url.includes('tel:') // Ignore phone links
-    );
+    // Extract all internal links (not external ones with target="_blank")
+    const internalLinkRegex = /<a\s+[^>]*href\s*=\s*["']([^"']+)["'][^>]*(?!.*target\s*=\s*["']_blank["'])[^>]*>(.*?)<\/a>/gi;
+    const internalLinks = [];
+    let match;
     
-    if (invalidUrls.length > 0) {
-        console.warn('⚠️ Generated content contains invalid internal URLs:', invalidUrls);
-        console.log('Valid URLs were:', validUrls);
-        return { 
-            valid: false, 
-            invalidUrls: invalidUrls,
-            validUrls: validUrls,
-            message: `Found ${invalidUrls.length} invalid URLs` 
-        };
-    } else {
-        console.log('✅ All internal links in generated content are valid');
-        return { valid: true, message: 'All internal links are valid' };
+    while ((match = internalLinkRegex.exec(content)) !== null) {
+        const url = match[1];
+        const anchorText = match[2];
+        
+        // Only process internal links (not external with http/https)
+        if (!url.includes('http://') && !url.includes('https://') && !url.includes('mailto:') && !url.includes('tel:')) {
+            internalLinks.push({ url, anchorText });
+        }
     }
+    
+    console.log(`📊 Found ${internalLinks.length} internal links`);
+    
+    // Check for invalid URLs
+    const invalidLinks = internalLinks.filter(link => !validUrls.includes(link.url));
+    
+    // Check for duplicate links to the same URL
+    const urlCounts = {};
+    internalLinks.forEach(link => {
+        urlCounts[link.url] = (urlCounts[link.url] || 0) + 1;
+    });
+    
+    const duplicateUrls = Object.keys(urlCounts).filter(url => urlCounts[url] > 1);
+    
+    // Log each internal link with quality assessment
+    internalLinks.forEach((link, index) => {
+        const isDuplicate = duplicateUrls.includes(link.url);
+        const isValid = validUrls.includes(link.url);
+        const status = !isValid ? '[INVALID URL]' : isDuplicate ? '[DUPLICATE]' : '[VALID]';
+        
+        console.log(`🔗 Internal Link ${index + 1}: "${link.anchorText}" → ${link.url} ${status}`);
+    });
+    
+    // Provide warnings and feedback
+    if (duplicateUrls.length > 0) {
+        console.warn(`⚠️ Duplicate internal links found - multiple links to same URLs:`, duplicateUrls);
+        console.warn(`💡 Rule: Maximum ONE internal link per target page/blog`);
+    }
+    
+    if (invalidLinks.length > 0) {
+        console.error('❌ Invalid internal links found:', invalidLinks.map(l => l.url));
+        console.log('✅ Valid internal links available:', validUrls);
+    }
+    
+    if (internalLinks.length < 2) {
+        console.warn(`⚠️ Only ${internalLinks.length} internal links found - should be 2-6 contextually relevant links`);
+    } else if (internalLinks.length > 6) {
+        console.warn(`⚠️ ${internalLinks.length} internal links found - maximum should be 6 to avoid over-linking`);
+    }
+    
+    const hasErrors = invalidLinks.length > 0;
+    const hasWarnings = duplicateUrls.length > 0;
+    
+    if (!hasErrors && !hasWarnings) {
+        console.log('✅ All internal links are valid and follow best practices');
+    }
+    
+    return {
+        valid: !hasErrors,
+        invalidLinks: invalidLinks.map(l => l.url),
+        duplicateUrls: duplicateUrls,
+        linkCount: internalLinks.length,
+        message: hasErrors ? `Invalid links found: ${invalidLinks.map(l => l.url).join(', ')}` : 
+                hasWarnings ? `Duplicate links found: ${duplicateUrls.join(', ')}` : 
+                'All internal links are valid'
+    };
 }
 
 // Helper function to get industry-specific authoritative sources
@@ -1047,10 +1095,20 @@ app.post('/api/generate/content', async (req, res) => {
 
     try {
         const internalLinksContext = internalLinks.length > 0 
-            ? `\nAvailable Internal Links - USE EXACT URLs ONLY:
-               ${internalLinks.map(link => `- URL: ${link.url} | Title: "${link.title}" | Category: ${link.category || 'general'} | Keywords: ${link.keywords || 'N/A'}`).join('\n')}
+            ? `\nAvailable Internal Links (choose 2-6 most contextually relevant, ONE link per URL):
+               ${internalLinks.map((link, index) => 
+                 `${index + 1}. "${link.title}" 
+                    URL: ${link.url}
+                    Category: ${link.category || 'general'}
+                    Keywords: ${link.keywords || 'N/A'}
+                    Description: ${link.description || 'Blog/page content'}
+               `).join('\n')}
                
-               IMPORTANT: You MUST use these exact URLs. Do not modify, create, or guess URLs.`
+               IMPORTANT: 
+               - Use EXACT URLs as provided above
+               - Maximum ONE link per target URL/page
+               - Choose links that genuinely relate to your content topics
+               - Anchor text should accurately represent the linked page's content`
             : '\nNo internal links available yet - do not create any internal links.';
 
         const prompt = `
@@ -1074,13 +1132,16 @@ app.post('/api/generate/content', async (req, res) => {
             - Make it engaging and valuable for readers
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
-            - MUST include 5-8 contextual internal links using ONLY the exact URLs provided above
-            - Internal links should flow naturally within sentences
-            - Use varied anchor text that matches the content context
-            - CRITICAL: Only use the exact URLs listed in the Available Internal Links section
-            - DO NOT create or modify URLs - use them exactly as provided
-            - Format links as: <a href="EXACT_URL_FROM_LIST">anchor text</a>
-            - Minimum 2 internal links, average 5-8 per article
+            - INTERNAL LINKING RULES:
+              * MAXIMUM ONE internal link per target page/blog - no duplicate linking to the same URL
+              * Only link to pages/blogs that are contextually relevant to your current topic
+              * Use anchor text that ACCURATELY represents the content of the page you're linking to
+              * Links must flow naturally within sentences and provide genuine value
+              * Choose 2-6 most relevant pages from the available internal links
+              * CRITICAL: Only use the exact URLs listed in the Available Internal Links section
+              * DO NOT create or modify URLs - use them exactly as provided
+              * Format links as: <a href="EXACT_URL_FROM_LIST">accurate descriptive anchor text</a>
+              * Ensure each link genuinely relates to and supports the current paragraph's topic
         `;
         
         const response = await ai.models.generateContent({
@@ -1710,10 +1771,20 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         }
 
         const internalLinksContext = internalLinks.length > 0 
-            ? `\nAvailable Internal Links - USE EXACT URLs ONLY:
-               ${internalLinks.map(link => `- URL: ${link.url} | Title: "${link.title}" | Category: ${link.category || 'general'} | Keywords: ${link.keywords || 'N/A'}`).join('\n')}
+            ? `\nAvailable Internal Links (choose 2-6 most contextually relevant, ONE link per URL):
+               ${internalLinks.map((link, index) => 
+                 `${index + 1}. "${link.title}" 
+                    URL: ${link.url}
+                    Category: ${link.category || 'general'}
+                    Keywords: ${link.keywords || 'N/A'}
+                    Description: ${link.description || 'Blog/page content'}
+               `).join('\n')}
                
-               IMPORTANT: You MUST use these exact URLs. Do not modify, create, or guess URLs.`
+               IMPORTANT: 
+               - Use EXACT URLs as provided above
+               - Maximum ONE link per target URL/page
+               - Choose links that genuinely relate to your content topics
+               - Anchor text should accurately represent the linked page's content`
             : '\nNo internal links available yet - do not create any internal links.';
 
         // Step 3: Generate Complete Blog Post
@@ -1737,13 +1808,16 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             - Make it engaging and valuable for readers
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
-            - MUST include 5-8 contextual internal links using ONLY the exact URLs provided above
-            - Internal links should flow naturally within sentences
-            - Use varied anchor text that matches the content context
-            - CRITICAL: Only use the exact URLs listed in the Available Internal Links section
-            - DO NOT create or modify URLs - use them exactly as provided
-            - Format links as: <a href="EXACT_URL_FROM_LIST">anchor text</a>
-            - Minimum 2 internal links, average 5-8 per article
+            - INTERNAL LINKING RULES:
+              * MAXIMUM ONE internal link per target page/blog - no duplicate linking to the same URL
+              * Only link to pages/blogs that are contextually relevant to your current topic
+              * Use anchor text that ACCURATELY represents the content of the page you're linking to
+              * Links must flow naturally within sentences and provide genuine value
+              * Choose 2-6 most relevant pages from the available internal links
+              * CRITICAL: Only use the exact URLs listed in the Available Internal Links section
+              * DO NOT create or modify URLs - use them exactly as provided
+              * Format links as: <a href="EXACT_URL_FROM_LIST">accurate descriptive anchor text</a>
+              * Ensure each link genuinely relates to and supports the current paragraph's topic
             
             EXTERNAL LINKS REQUIREMENTS:
             - Include 2-8 relevant external links to REAL, LEGITIMATE websites only
@@ -1957,10 +2031,20 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         }
 
         const internalLinksContext = internalLinks.length > 0 
-            ? `\nAvailable Internal Links - USE EXACT URLs ONLY:
-               ${internalLinks.map(link => `- URL: ${link.url} | Title: "${link.title}" | Category: ${link.category || 'general'} | Keywords: ${link.keywords || 'N/A'}`).join('\n')}
+            ? `\nAvailable Internal Links (choose 2-6 most contextually relevant, ONE link per URL):
+               ${internalLinks.map((link, index) => 
+                 `${index + 1}. "${link.title}" 
+                    URL: ${link.url}
+                    Category: ${link.category || 'general'}
+                    Keywords: ${link.keywords || 'N/A'}
+                    Description: ${link.description || 'Blog/page content'}
+               `).join('\n')}
                
-               IMPORTANT: You MUST use these exact URLs. Do not modify, create, or guess URLs.`
+               IMPORTANT: 
+               - Use EXACT URLs as provided above
+               - Maximum ONE link per target URL/page
+               - Choose links that genuinely relate to your content topics
+               - Anchor text should accurately represent the linked page's content`
             : '\nNo internal links available yet - do not create any internal links.';
 
         // Step 4: Generate Complete Blog Content
@@ -1984,13 +2068,16 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             - Make it engaging and valuable for readers
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
-            - MUST include 5-8 contextual internal links using ONLY the exact URLs provided above
-            - Internal links should flow naturally within sentences
-            - Use varied anchor text that matches the content context
-            - CRITICAL: Only use the exact URLs listed in the Available Internal Links section
-            - DO NOT create or modify URLs - use them exactly as provided
-            - Format links as: <a href="EXACT_URL_FROM_LIST">anchor text</a>
-            - Minimum 2 internal links, average 5-8 per article
+            - INTERNAL LINKING RULES:
+              * MAXIMUM ONE internal link per target page/blog - no duplicate linking to the same URL
+              * Only link to pages/blogs that are contextually relevant to your current topic
+              * Use anchor text that ACCURATELY represents the content of the page you're linking to
+              * Links must flow naturally within sentences and provide genuine value
+              * Choose 2-6 most relevant pages from the available internal links
+              * CRITICAL: Only use the exact URLs listed in the Available Internal Links section
+              * DO NOT create or modify URLs - use them exactly as provided
+              * Format links as: <a href="EXACT_URL_FROM_LIST">accurate descriptive anchor text</a>
+              * Ensure each link genuinely relates to and supports the current paragraph's topic
             
             EXTERNAL LINKS REQUIREMENTS:
             - Include 2-8 relevant external links to REAL, LEGITIMATE websites only
