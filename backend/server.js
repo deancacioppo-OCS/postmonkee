@@ -687,16 +687,31 @@ async function crawlWebsiteForClient(clientId, websiteUrl) {
             5. For each URL, provide a title and brief description
             6. Limit to 30 most important pages
             
+            CRITICAL: Return URLs as RELATIVE PATHS only (without the domain).
+            
             Return a JSON array of objects with this structure:
             [
                 {
-                    "url": "https://example.com/page",
-                    "title": "Page Title",
+                    "url": "/page-path/",
+                    "title": "Page Title", 
                     "description": "Brief description of what this page is about",
                     "category": "blog|service|product|about|resource|other"
                 }
             ]
             
+            EXAMPLES OF CORRECT URL FORMATS:
+            - "/" (homepage)
+            - "/about/"
+            - "/services/"
+            - "/services/auto-insurance/"
+            - "/blog/insurance-tips/"
+            - "/contact/"
+            
+            WRONG FORMAT (do not use):
+            - "https://example.com/about/"
+            - "www.example.com/services"
+            
+            Return ONLY the path portion of URLs, starting with "/" and including trailing slashes where appropriate.
             Be thorough but prioritize pages that would be valuable for internal linking.
         `;
         
@@ -711,8 +726,39 @@ async function crawlWebsiteForClient(clientId, websiteUrl) {
         const crawledPages = JSON.parse(response.text);
         console.log(`Gemini found ${crawledPages.length} pages to crawl`);
         
-        // Store URLs in database
-        for (const page of crawledPages) {
+        // Validate and clean URLs to ensure they're proper relative paths
+        const cleanedPages = crawledPages.map(page => {
+            let cleanUrl = page.url;
+            
+            // If URL still contains domain (Gemini didn't follow instructions), extract path
+            if (cleanUrl.includes('://')) {
+                try {
+                    const urlObj = new URL(cleanUrl);
+                    cleanUrl = urlObj.pathname;
+                } catch (e) {
+                    console.warn(`⚠️ Invalid URL format: ${cleanUrl}, skipping`);
+                    return null;
+                }
+            }
+            
+            // Ensure URL starts with /
+            if (!cleanUrl.startsWith('/')) {
+                cleanUrl = '/' + cleanUrl;
+            }
+            
+            // Log the cleaned URL
+            console.log(`🔗 Cleaned URL: ${page.url} → ${cleanUrl}`);
+            
+            return {
+                ...page,
+                url: cleanUrl
+            };
+        }).filter(page => page !== null); // Remove any invalid pages
+        
+        console.log(`📋 Storing ${cleanedPages.length} cleaned URLs in database`);
+        
+        // Store cleaned URLs in database
+        for (const page of cleanedPages) {
             try {
                 await pool.query(
                     'INSERT INTO sitemap_urls (client_id, url, title, description, category, last_modified) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT (client_id, url) DO UPDATE SET title = $3, description = $4, category = $5, last_modified = NOW()',
@@ -723,8 +769,8 @@ async function crawlWebsiteForClient(clientId, websiteUrl) {
             }
         }
         
-        console.log(`Stored ${crawledPages.length} URLs for client ${clientId}`);
-        return crawledPages.length;
+        console.log(`Stored ${cleanedPages.length} URLs for client ${clientId}`);
+        return cleanedPages.length;
         
     } catch (error) {
         console.error('Error crawling website:', error);
@@ -1905,12 +1951,13 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             EXTERNAL LINKS REQUIREMENTS:
             - Include 2-8 relevant external links to REAL, LEGITIMATE websites only
             - CRITICAL: Only reference actual websites that exist and provide genuine information
-            - PRIORITIZE INDUSTRY-SPECIFIC AUTHORITATIVE SOURCES:
-              * Government sites (.gov domains) for official statistics and regulations
-              * Industry associations and professional organizations (HIGHEST PRIORITY)
-              * Major news publications (Reuters, BBC, Wall Street Journal, etc.)
-              * Established research institutions and universities (.edu domains)
-              * Recognized industry publications and trade websites
+            - NEVER create fictional URLs or hypothetical websites
+            - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
+              * Government sites (.gov domains) - use REAL government websites only
+              * Industry associations and professional organizations (HIGHEST PRIORITY) - use REAL organizations
+              * Major news publications: reuters.com, bbc.com, wsj.com, bloomberg.com, cnbc.com
+              * Established research institutions and universities (.edu domains) - use REAL universities
+              * Recognized industry publications and trade websites - use REAL publications only
               * Wikipedia (en.wikipedia.org) ONLY as absolute last resort for basic definitions
             - Links must be contextually integrated into the content naturally
             - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
@@ -2185,12 +2232,13 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             EXTERNAL LINKS REQUIREMENTS:
             - Include 2-8 relevant external links to REAL, LEGITIMATE websites only
             - CRITICAL: Only reference actual websites that exist and provide genuine information
-            - PRIORITIZE INDUSTRY-SPECIFIC AUTHORITATIVE SOURCES:
-              * Government sites (.gov domains) for official statistics and regulations
-              * Industry associations and professional organizations (HIGHEST PRIORITY)
-              * Major news publications (Reuters, BBC, Wall Street Journal, etc.)
-              * Established research institutions and universities (.edu domains)
-              * Recognized industry publications and trade websites
+            - NEVER create fictional URLs or hypothetical websites
+            - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
+              * Government sites (.gov domains) - use REAL government websites only
+              * Industry associations and professional organizations (HIGHEST PRIORITY) - use REAL organizations
+              * Major news publications: reuters.com, bbc.com, wsj.com, bloomberg.com, cnbc.com
+              * Established research institutions and universities (.edu domains) - use REAL universities
+              * Recognized industry publications and trade websites - use REAL publications only
               * Wikipedia (en.wikipedia.org) ONLY as absolute last resort for basic definitions
             - Links must be contextually integrated into the content naturally
             - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
