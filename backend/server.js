@@ -501,6 +501,36 @@ function validateInternalLinks(content, validLinks) {
     };
 }
 
+// Helper function to create content style context from scraped site
+function createContentStyleContext(internalLinks) {
+    if (!internalLinks || internalLinks.length === 0) {
+        return '\nNo existing content style reference available.';
+    }
+    
+    const titles = internalLinks.filter(link => link.title).slice(0, 10);
+    const categories = [...new Set(internalLinks.map(link => link.category).filter(Boolean))];
+    
+    return `
+EXISTING CONTENT STYLE REFERENCE (match this tone and approach):
+${titles.map((link, index) => `${index + 1}. "${link.title}"`).join('\n')}
+
+Content Categories on Site: ${categories.join(', ')}
+
+WRITING STYLE INSTRUCTIONS:
+- Match the tone and style of the existing content titles above
+- Write naturally and conversationally, avoiding overly promotional language
+- Use clear, direct language without excessive adjectives or adverbs
+- AVOID these AI-sounding phrases: "comprehensive solutions," "cutting-edge," "seamless," "revolutionary," "game-changing," "innovative," "state-of-the-art," "world-class," "industry-leading"
+- AVOID overused adverbs: "seamlessly," "effortlessly," "significantly," "dramatically," "substantially," "comprehensively"
+- Write as a knowledgeable professional, not a marketing copywriter
+- Use active voice and concrete examples rather than abstract concepts
+- Keep sentences varied in length - mix short punchy sentences with longer explanatory ones
+- Avoid overuse of superlatives (best, most, ultimate, perfect, incredible, amazing, outstanding)
+- Use specific facts and numbers instead of vague claims
+- Write like a human expert sharing practical knowledge, not an AI trying to impress
+`;
+}
+
 // Helper function to get industry-specific authoritative sources
 function getIndustryAuthoritativeSources(industry) {
     const sources = {
@@ -1136,11 +1166,14 @@ app.post('/api/generate/content', async (req, res) => {
                - QUALITY OVER QUANTITY - don't force irrelevant links`
             : '\nNo internal links available yet - do not create any internal links.';
 
+        const contentStyleContext = createContentStyleContext(internalLinks);
+        
         const prompt = `
             You are an expert content writer for a company in the '${client.industry}' industry.
             Company's unique value proposition: '${client.uniqueValueProp}'
             Company's brand voice: '${client.brandVoice}'
             Company's content strategy: '${client.contentStrategy}'
+            ${contentStyleContext}
             
             Write a complete blog post based on:
             Topic: ${topic}
@@ -1819,11 +1852,14 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             : '\nNo internal links available yet - do not create any internal links.';
 
         // Step 3: Generate Complete Blog Post
+        const contentStyleContext = createContentStyleContext(internalLinks);
+        
         const contentPrompt = `
             You are an expert content writer for a company in the '${client.industry}' industry.
             Company's unique value proposition: '${client.uniqueValueProp}'
             Company's brand voice: '${client.brandVoice}'
             Company's content strategy: '${client.contentStrategy}'
+            ${contentStyleContext}
             
             Write a complete blog post based on:
             Topic: ${topic}
@@ -2089,11 +2125,14 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             : '\nNo internal links available yet - do not create any internal links.';
 
         // Step 4: Generate Complete Blog Content
+        const contentStyleContext = createContentStyleContext(internalLinks);
+        
         const contentPrompt = `
             You are an expert content writer for a company in the '${client.industry}' industry.
             Company's unique value proposition: '${client.uniqueValueProp}'
             Company's brand voice: '${client.brandVoice}'
             Company's content strategy: '${client.contentStrategy}'
+            ${contentStyleContext}
             
             Write a complete blog post based on:
             Topic: ${topic}
