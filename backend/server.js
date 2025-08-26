@@ -443,6 +443,49 @@ function validateInternalLinks(content, validLinks) {
     }
 }
 
+// Helper function to validate external links
+function validateExternalLinks(content) {
+    console.log('🔗 Validating external links in content...');
+    
+    // Extract external links with target="_blank"
+    const externalLinkRegex = /<a\s+[^>]*href\s*=\s*["']([^"']+)["'][^>]*target\s*=\s*["']_blank["'][^>]*>(.*?)<\/a>/gi;
+    const externalLinks = [];
+    let match;
+    
+    while ((match = externalLinkRegex.exec(content)) !== null) {
+        const url = match[1];
+        const anchorText = match[2];
+        
+        // Basic validation for external URLs
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            externalLinks.push({
+                url: url,
+                anchorText: anchorText,
+                isValid: true
+            });
+        } else {
+            console.warn(`⚠️ Invalid external link found: ${url}`);
+        }
+    }
+    
+    console.log(`📊 Found ${externalLinks.length} external links`);
+    
+    if (externalLinks.length < 2) {
+        console.warn(`⚠️ Only ${externalLinks.length} external links found - should be 2-8`);
+    } else if (externalLinks.length > 8) {
+        console.warn(`⚠️ ${externalLinks.length} external links found - maximum should be 8`);
+    } else {
+        console.log(`✅ External link count is optimal: ${externalLinks.length} links`);
+    }
+    
+    // Log external links for debugging
+    externalLinks.forEach((link, index) => {
+        console.log(`🔗 External Link ${index + 1}: "${link.anchorText}" → ${link.url}`);
+    });
+    
+    return externalLinks;
+}
+
 // --- Web Crawling Functions ---
 
 async function crawlWebsiteForClient(clientId, websiteUrl) {
@@ -990,6 +1033,9 @@ app.post('/api/generate/content', async (req, res) => {
         
         // Validate internal links in generated content
         validateInternalLinks(contentData.content, internalLinks);
+        
+        // Validate external links in generated content
+        validateExternalLinks(contentData.content);
         
         res.json(contentData);
 
@@ -1617,6 +1663,17 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             - Format links as: <a href="EXACT_URL_FROM_LIST">anchor text</a>
             - Minimum 2 internal links, average 5-8 per article
             
+            EXTERNAL LINKS REQUIREMENTS:
+            - Include 2-8 relevant external links to authoritative sources
+            - Links must be contextually integrated into the content naturally
+            - Use descriptive, keyword-rich anchor text (not "click here" or "read more")
+            - Focus on authoritative sources: industry publications, research papers, government sites, established organizations
+            - Links should provide additional information, statistics, or expert opinions that support your points
+            - Format: <a href="URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
+            - Ensure links enhance credibility and provide genuine value to readers
+            - Distribute links throughout the article naturally within relevant sentences
+            - Include recent sources when possible (within last 2-3 years)
+            
             FAQ REQUIREMENTS:
             - Generate 2-8 relevant FAQs based on the blog content
             - Questions should address common concerns readers might have about the topic
@@ -1658,6 +1715,9 @@ app.post('/api/generate/complete-blog', async (req, res) => {
 
         // Validate internal links in complete blog content
         validateInternalLinks(contentData.content, internalLinks);
+        
+        // Validate external links in complete blog content
+        validateExternalLinks(contentData.content);
 
         // Generate FAQ HTML with schema markup
         const faqHTML = generateFAQHTML(contentData.faqs);
@@ -1837,6 +1897,17 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             - Format links as: <a href="EXACT_URL_FROM_LIST">anchor text</a>
             - Minimum 2 internal links, average 5-8 per article
             
+            EXTERNAL LINKS REQUIREMENTS:
+            - Include 2-8 relevant external links to authoritative sources
+            - Links must be contextually integrated into the content naturally
+            - Use descriptive, keyword-rich anchor text (not "click here" or "read more")
+            - Focus on authoritative sources: industry publications, research papers, government sites, established organizations
+            - Links should provide additional information, statistics, or expert opinions that support your points
+            - Format: <a href="URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
+            - Ensure links enhance credibility and provide genuine value to readers
+            - Distribute links throughout the article naturally within relevant sentences
+            - Include recent sources when possible (within last 2-3 years)
+            
             FAQ REQUIREMENTS:
             - Generate 2-8 relevant FAQs based on the blog content
             - Questions should address common concerns readers might have about the topic
@@ -1879,6 +1950,9 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
 
         // Validate internal links in lucky blog content
         validateInternalLinks(contentData.content, internalLinks);
+        
+        // Validate external links in lucky blog content
+        validateExternalLinks(contentData.content);
 
         // Step 5: Wait for Parallel Image Generation and Upload
         console.log(`🖼️ Step 5: Waiting for parallel image generation to complete...`);
