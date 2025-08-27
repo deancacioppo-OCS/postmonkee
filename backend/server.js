@@ -2109,9 +2109,9 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         
         const contentData = JSON.parse(contentResponse.text);
 
-        // CRITICAL: Replace any guessed URLs with actual URLs before validation
-        console.log('🔧 Applying URL replacement to complete blog content...');
-        contentData.content = replaceGuessedURLsWithReal(contentData.content, internalLinks);
+        // CRITICAL: Replace URL templates with actual URLs
+        console.log('🔧 Applying template-based URL replacement to complete blog content...');
+        contentData.content = replaceUrlTemplatesWithReal(contentData.content, internalLinks);
         
         // Validate internal links in complete blog content
         validateInternalLinks(contentData.content, internalLinks);
@@ -2387,9 +2387,9 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         
         const contentData = JSON.parse(contentResponse.text);
 
-        // CRITICAL: Replace any guessed URLs with actual URLs before validation
-        console.log('🔧 Applying URL replacement to lucky blog content...');
-        contentData.content = replaceGuessedURLsWithReal(contentData.content, internalLinks);
+        // CRITICAL: Replace URL templates with actual URLs
+        console.log('🔧 Applying template-based URL replacement to lucky blog content...');
+        contentData.content = replaceUrlTemplatesWithReal(contentData.content, internalLinks);
         
         // Validate internal links in lucky blog content
         validateInternalLinks(contentData.content, internalLinks);
