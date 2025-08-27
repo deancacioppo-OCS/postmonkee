@@ -596,143 +596,36 @@ function getIndustryAuthoritativeSources(industry) {
     return sources[industryKey] || sources['general'];
 }
 
-// Helper function to replace Gemini's guessed URLs with actual URLs
-function replaceGuessedURLsWithReal(content, validLinks) {
+// Helper function to replace URL templates with actual URLs (Option 2: Template-Based)
+function replaceUrlTemplatesWithReal(content, validLinks) {
     if (!validLinks || validLinks.length === 0) {
-        console.log('🔗 No valid links available for URL replacement');
+        console.log('🔗 No valid links available for template replacement');
         return content;
     }
     
-    console.log('🔄 Starting URL replacement process...');
-    console.log(`📋 Available real URLs: ${validLinks.map(l => l.url).join(', ')}`);
-    
-    // Extract all internal links that Gemini created
-    const internalLinkRegex = /<a\s+[^>]*href\s*=\s*["']([^"']+)["'][^>]*(?!.*target\s*=\s*["']_blank["'])[^>]*>(.*?)<\/a>/gi;
+    console.log('🔧 Starting template-based URL replacement...');
     let processedContent = content;
-    let match;
     let replacements = [];
     
-    // Reset regex
-    internalLinkRegex.lastIndex = 0;
-    
-    while ((match = internalLinkRegex.exec(content)) !== null) {
-        const guessedUrl = match[1];
-        const anchorText = match[2];
-        const fullLinkTag = match[0];
+    // Replace each template with corresponding real URL
+    validLinks.forEach((link, index) => {
+        const template = `{{LINK_${index + 1}}}`;
+        const linkCount = (content.match(new RegExp(template.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length;
         
-        // Skip if this is already a valid URL (external links or correct internal links)
-        if (guessedUrl.includes('http://') || guessedUrl.includes('https://') || 
-            guessedUrl.includes('mailto:') || guessedUrl.includes('tel:')) {
-            continue;
-        }
-        
-        // Skip placeholder/invalid URLs that shouldn't be replaced
-        if (guessedUrl === '#' || guessedUrl === '' || guessedUrl === 'javascript:void(0)') {
-            console.log(`⚠️ Skipping placeholder/invalid URL: ${guessedUrl}`);
-            continue;
-        }
-        
-        // Check if the guessed URL is already correct
-        const isAlreadyCorrect = validLinks.some(link => link.url === guessedUrl);
-        if (isAlreadyCorrect) {
-            console.log(`✅ URL already correct: ${guessedUrl}`);
-            continue;
-        }
-        
-        // Find the best matching real URL
-        const bestMatch = findBestURLMatch(anchorText, guessedUrl, validLinks);
-        
-        if (bestMatch) {
-            // Create the corrected link tag
-            const correctedLinkTag = fullLinkTag.replace(guessedUrl, bestMatch.url);
-            
-            // Replace in content
-            processedContent = processedContent.replace(fullLinkTag, correctedLinkTag);
-            
+        if (linkCount > 0) {
+            processedContent = processedContent.replace(new RegExp(template.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), link.url);
             replacements.push({
-                original: guessedUrl,
-                corrected: bestMatch.url,
-                anchorText: anchorText,
-                score: bestMatch.score
+                template: template,
+                url: link.url,
+                title: link.title,
+                count: linkCount
             });
-            
-            console.log(`🔄 REPLACED: "${guessedUrl}" → "${bestMatch.url}" (score: ${bestMatch.score.toFixed(2)}) for anchor: "${anchorText}"`);
-        } else {
-            console.log(`⚠️ No good match found for: "${guessedUrl}" with anchor: "${anchorText}"`);
+            console.log(`🔄 REPLACED: "${template}" → "${link.url}" (${linkCount} times) for "${link.title}"`);
         }
-    }
+    });
     
-    console.log(`🎯 URL Replacement Summary: ${replacements.length} URLs replaced`);
-    if (replacements.length > 0) {
-        replacements.forEach(r => console.log(`   ${r.original} → ${r.corrected}`));
-    }
-    
+    console.log(`🎯 Template Replacement Summary: ${replacements.length} templates replaced`);
     return processedContent;
-}
-
-// Helper function to find the best matching URL based on anchor text and URL similarity
-function findBestURLMatch(anchorText, guessedUrl, validLinks) {
-    if (!validLinks || validLinks.length === 0) return null;
-    
-    const scores = validLinks.map(link => {
-        let score = 0;
-        
-        // Score based on title similarity to anchor text
-        if (link.title) {
-            score += calculateTextSimilarity(anchorText.toLowerCase(), link.title.toLowerCase()) * 0.4;
-        }
-        
-        // Score based on URL path similarity
-        score += calculateTextSimilarity(guessedUrl.toLowerCase(), link.url.toLowerCase()) * 0.3;
-        
-        // Score based on keywords match
-        if (link.keywords && link.keywords !== 'N/A') {
-            score += calculateTextSimilarity(anchorText.toLowerCase(), link.keywords.toLowerCase()) * 0.2;
-        }
-        
-        // Score based on description match  
-        if (link.description) {
-            score += calculateTextSimilarity(anchorText.toLowerCase(), link.description.toLowerCase()) * 0.1;
-        }
-        
-        return {
-            url: link.url,
-            title: link.title,
-            score: score
-        };
-    });
-    
-    // Sort by score and return the best match if it's above threshold
-    const sortedScores = scores.sort((a, b) => b.score - a.score);
-    const bestMatch = sortedScores[0];
-    
-    // Only return if score is above minimum threshold (0.3 = 30% similarity)
-    if (bestMatch && bestMatch.score > 0.3) {
-        return bestMatch;
-    }
-    
-    console.log(`❌ Best match "${bestMatch?.url}" score too low: ${bestMatch?.score?.toFixed(2)} (need >0.3)`);
-    
-    return null;
-}
-
-// Helper function to calculate text similarity (basic implementation)
-function calculateTextSimilarity(text1, text2) {
-    // Convert to lowercase and split into words
-    const words1 = text1.toLowerCase().split(/\s+/);
-    const words2 = text2.toLowerCase().split(/\s+/);
-    
-    // Count matching words
-    let matches = 0;
-    words1.forEach(word => {
-        if (words2.some(w => w.includes(word) || word.includes(w))) {
-            matches++;
-        }
-    });
-    
-    // Calculate similarity as percentage of matching words
-    const maxLength = Math.max(words1.length, words2.length);
-    return maxLength > 0 ? matches / maxLength : 0;
 }
 
 // Helper function to validate external links
@@ -1342,28 +1235,23 @@ app.post('/api/generate/content', async (req, res) => {
 
     try {
         const internalLinksContext = internalLinks.length > 0 
-            ? `\nAvailable Internal Links (choose 2-6 most contextually relevant, ONE link per URL):
+            ? `\nAvailable Internal Links (use these EXACT templates, maximum ONE use per template):
                ${internalLinks.map((link, index) => 
-                 `${index + 1}. EXACT URL TO USE: ${link.url}
+                 `${index + 1}. Template: {{LINK_${index + 1}}}
                     Page Title: "${link.title}"
                     What it's about: ${link.description || 'Blog/page content'}
                     Category: ${link.category || 'general'}
                     Keywords: ${link.keywords || 'N/A'}
-                    
-                    ➡️ COPY THIS URL EXACTLY: ${link.url} ⬅️
                `).join('\n')}
                
                🚨 CRITICAL LINKING RULES: 
-               - COPY THE EXACT URLs SHOWN ABOVE - DO NOT MODIFY, SHORTEN, OR GUESS URLS
-               - Use format: <a href="EXACT_URL_FROM_ABOVE">descriptive anchor text</a>
-               - Maximum ONE link per target URL/page - NO EXCEPTIONS
-               - NO HOMEPAGE LINKS (/) unless absolutely critical
+               - Use EXACT templates shown above: {{LINK_1}}, {{LINK_2}}, etc.
+               - Format: <a href="{{LINK_1}}">descriptive anchor text</a>
+               - Maximum ONE use per template - NO EXCEPTIONS
                - Only link when there is GENUINE topical relevance
-               - If you need a URL not listed above, DO NOT create it - skip that link
-               - Be VERY SELECTIVE - 2-4 quality links are better than 6 poor ones
-               - Anchor text must PRECISELY represent the linked page content
-               - If no pages are truly relevant, use fewer links
-               - QUALITY OVER QUANTITY - don't force irrelevant links`
+               - Choose 2-4 most relevant templates for your content
+               - Anchor text must describe what the linked page is about
+               - NEVER create your own URLs - only use the templates provided`
             : '\nNo internal links available yet - do not create any internal links.';
 
         const contentStyleContext = createContentStyleContext(internalLinks);
@@ -1391,19 +1279,16 @@ app.post('/api/generate/content', async (req, res) => {
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
             - INTERNAL LINKING RULES:
-              * CRITICAL: MAXIMUM ONE internal link per target URL - NEVER link to the same page twice
-              * CRITICAL: NO HOMEPAGE LINKS - Do not link to the homepage (/) unless absolutely necessary
-              * Only link when there is a GENUINE contextual connection to the topic being discussed
-              * Be VERY SELECTIVE - only 2-4 truly relevant links, not forced linking
+              * CRITICAL: Use ONLY the template placeholders provided: {{LINK_1}}, {{LINK_2}}, etc.
+              * MAXIMUM ONE use per template - NEVER use the same template twice
+              * Only link when there is a GENUINE contextual connection to the topic
+              * Be VERY SELECTIVE - only 2-4 truly relevant templates, not forced linking
               * Use anchor text that EXACTLY matches what the linked page is about
               * Links must feel NATURAL and provide real value to readers
-              * CRITICAL: COPY the exact URLs listed in the Available Internal Links section - DO NOT GUESS OR MODIFY
-              * DO NOT create, shorten, or modify URLs - use them EXACTLY as provided with full path
-              * NEVER assume what a URL should be - only use URLs explicitly listed above
-              * Format links as: <a href="EXACT_URL_FROM_LIST">precise descriptive anchor text</a>
-              * EXAMPLE: If URL is "/services/auto-insurance/" use: <a href="/services/auto-insurance/">auto insurance coverage</a>
-              * WRONG: <a href="/auto-insurance">coverage</a> (don't guess or shorten URLs)
-              * If no pages are genuinely relevant to your topic, use fewer links or none
+              * Format links as: <a href="{{LINK_1}}">precise descriptive anchor text</a>
+              * EXAMPLE: <a href="{{LINK_2}}">auto insurance coverage</a>
+              * NEVER create your own URLs or modify templates
+              * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
         `;
         
@@ -1437,9 +1322,9 @@ app.post('/api/generate/content', async (req, res) => {
         
         const contentData = JSON.parse(response.text);
         
-        // CRITICAL: Replace any guessed URLs with actual URLs before validation
-        console.log('🔧 Applying URL replacement to fix any guessed URLs...');
-        contentData.content = replaceGuessedURLsWithReal(contentData.content, internalLinks);
+        // Apply template-based URL replacement
+        console.log('🔧 Applying template-based URL replacement...');
+        contentData.content = replaceUrlTemplatesWithReal(contentData.content, internalLinks);
         
         // Validate internal links in generated content
         validateInternalLinks(contentData.content, internalLinks);
@@ -2100,28 +1985,23 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         }
 
         const internalLinksContext = internalLinks.length > 0 
-            ? `\nAvailable Internal Links (choose 2-6 most contextually relevant, ONE link per URL):
+            ? `\nAvailable Internal Links (use these EXACT templates, maximum ONE use per template):
                ${internalLinks.map((link, index) => 
-                 `${index + 1}. EXACT URL TO USE: ${link.url}
+                 `${index + 1}. Template: {{LINK_${index + 1}}}
                     Page Title: "${link.title}"
                     What it's about: ${link.description || 'Blog/page content'}
                     Category: ${link.category || 'general'}
                     Keywords: ${link.keywords || 'N/A'}
-                    
-                    ➡️ COPY THIS URL EXACTLY: ${link.url} ⬅️
                `).join('\n')}
                
                🚨 CRITICAL LINKING RULES: 
-               - COPY THE EXACT URLs SHOWN ABOVE - DO NOT MODIFY, SHORTEN, OR GUESS URLS
-               - Use format: <a href="EXACT_URL_FROM_ABOVE">descriptive anchor text</a>
-               - Maximum ONE link per target URL/page - NO EXCEPTIONS
-               - NO HOMEPAGE LINKS (/) unless absolutely critical
+               - Use EXACT templates shown above: {{LINK_1}}, {{LINK_2}}, etc.
+               - Format: <a href="{{LINK_1}}">descriptive anchor text</a>
+               - Maximum ONE use per template - NO EXCEPTIONS
                - Only link when there is GENUINE topical relevance
-               - If you need a URL not listed above, DO NOT create it - skip that link
-               - Be VERY SELECTIVE - 2-4 quality links are better than 6 poor ones
-               - Anchor text must PRECISELY represent the linked page content
-               - If no pages are truly relevant, use fewer links
-               - QUALITY OVER QUANTITY - don't force irrelevant links`
+               - Choose 2-4 most relevant templates for your content
+               - Anchor text must describe what the linked page is about
+               - NEVER create your own URLs - only use the templates provided`
             : '\nNo internal links available yet - do not create any internal links.';
 
         // Step 3: Generate Complete Blog Post
@@ -2149,19 +2029,16 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
             - INTERNAL LINKING RULES:
-              * CRITICAL: MAXIMUM ONE internal link per target URL - NEVER link to the same page twice
-              * CRITICAL: NO HOMEPAGE LINKS - Do not link to the homepage (/) unless absolutely necessary
-              * Only link when there is a GENUINE contextual connection to the topic being discussed
-              * Be VERY SELECTIVE - only 2-4 truly relevant links, not forced linking
+              * CRITICAL: Use ONLY the template placeholders provided: {{LINK_1}}, {{LINK_2}}, etc.
+              * MAXIMUM ONE use per template - NEVER use the same template twice
+              * Only link when there is a GENUINE contextual connection to the topic
+              * Be VERY SELECTIVE - only 2-4 truly relevant templates, not forced linking
               * Use anchor text that EXACTLY matches what the linked page is about
               * Links must feel NATURAL and provide real value to readers
-              * CRITICAL: COPY the exact URLs listed in the Available Internal Links section - DO NOT GUESS OR MODIFY
-              * DO NOT create, shorten, or modify URLs - use them EXACTLY as provided with full path
-              * NEVER assume what a URL should be - only use URLs explicitly listed above
-              * Format links as: <a href="EXACT_URL_FROM_LIST">precise descriptive anchor text</a>
-              * EXAMPLE: If URL is "/services/auto-insurance/" use: <a href="/services/auto-insurance/">auto insurance coverage</a>
-              * WRONG: <a href="/auto-insurance">coverage</a> (don't guess or shorten URLs)
-              * If no pages are genuinely relevant to your topic, use fewer links or none
+              * Format links as: <a href="{{LINK_1}}">precise descriptive anchor text</a>
+              * EXAMPLE: <a href="{{LINK_2}}">auto insurance coverage</a>
+              * NEVER create your own URLs or modify templates
+              * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
             EXTERNAL LINKS REQUIREMENTS:
@@ -2385,28 +2262,23 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         }
 
         const internalLinksContext = internalLinks.length > 0 
-            ? `\nAvailable Internal Links (choose 2-6 most contextually relevant, ONE link per URL):
+            ? `\nAvailable Internal Links (use these EXACT templates, maximum ONE use per template):
                ${internalLinks.map((link, index) => 
-                 `${index + 1}. EXACT URL TO USE: ${link.url}
+                 `${index + 1}. Template: {{LINK_${index + 1}}}
                     Page Title: "${link.title}"
                     What it's about: ${link.description || 'Blog/page content'}
                     Category: ${link.category || 'general'}
                     Keywords: ${link.keywords || 'N/A'}
-                    
-                    ➡️ COPY THIS URL EXACTLY: ${link.url} ⬅️
                `).join('\n')}
                
                🚨 CRITICAL LINKING RULES: 
-               - COPY THE EXACT URLs SHOWN ABOVE - DO NOT MODIFY, SHORTEN, OR GUESS URLS
-               - Use format: <a href="EXACT_URL_FROM_ABOVE">descriptive anchor text</a>
-               - Maximum ONE link per target URL/page - NO EXCEPTIONS
-               - NO HOMEPAGE LINKS (/) unless absolutely critical
+               - Use EXACT templates shown above: {{LINK_1}}, {{LINK_2}}, etc.
+               - Format: <a href="{{LINK_1}}">descriptive anchor text</a>
+               - Maximum ONE use per template - NO EXCEPTIONS
                - Only link when there is GENUINE topical relevance
-               - If you need a URL not listed above, DO NOT create it - skip that link
-               - Be VERY SELECTIVE - 2-4 quality links are better than 6 poor ones
-               - Anchor text must PRECISELY represent the linked page content
-               - If no pages are truly relevant, use fewer links
-               - QUALITY OVER QUANTITY - don't force irrelevant links`
+               - Choose 2-4 most relevant templates for your content
+               - Anchor text must describe what the linked page is about
+               - NEVER create your own URLs - only use the templates provided`
             : '\nNo internal links available yet - do not create any internal links.';
 
         // Step 4: Generate Complete Blog Content
@@ -2434,19 +2306,16 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
             - INTERNAL LINKING RULES:
-              * CRITICAL: MAXIMUM ONE internal link per target URL - NEVER link to the same page twice
-              * CRITICAL: NO HOMEPAGE LINKS - Do not link to the homepage (/) unless absolutely necessary
-              * Only link when there is a GENUINE contextual connection to the topic being discussed
-              * Be VERY SELECTIVE - only 2-4 truly relevant links, not forced linking
+              * CRITICAL: Use ONLY the template placeholders provided: {{LINK_1}}, {{LINK_2}}, etc.
+              * MAXIMUM ONE use per template - NEVER use the same template twice
+              * Only link when there is a GENUINE contextual connection to the topic
+              * Be VERY SELECTIVE - only 2-4 truly relevant templates, not forced linking
               * Use anchor text that EXACTLY matches what the linked page is about
               * Links must feel NATURAL and provide real value to readers
-              * CRITICAL: COPY the exact URLs listed in the Available Internal Links section - DO NOT GUESS OR MODIFY
-              * DO NOT create, shorten, or modify URLs - use them EXACTLY as provided with full path
-              * NEVER assume what a URL should be - only use URLs explicitly listed above
-              * Format links as: <a href="EXACT_URL_FROM_LIST">precise descriptive anchor text</a>
-              * EXAMPLE: If URL is "/services/auto-insurance/" use: <a href="/services/auto-insurance/">auto insurance coverage</a>
-              * WRONG: <a href="/auto-insurance">coverage</a> (don't guess or shorten URLs)
-              * If no pages are genuinely relevant to your topic, use fewer links or none
+              * Format links as: <a href="{{LINK_1}}">precise descriptive anchor text</a>
+              * EXAMPLE: <a href="{{LINK_2}}">auto insurance coverage</a>
+              * NEVER create your own URLs or modify templates
+              * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
             EXTERNAL LINKS REQUIREMENTS:
