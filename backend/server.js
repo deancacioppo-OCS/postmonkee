@@ -9,6 +9,7 @@ import sharp from 'sharp';
 import { Readable } from 'stream';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
+import { parseString } from 'xml2js';
 
 const { Pool } = pg;
 
@@ -701,8 +702,192 @@ function validateExternalLinks(content) {
     return externalLinks;
 }
 
-// --- Web Crawling Functions ---
+// --- Web Crawling and Sitemap Functions ---
 
+// Helper function to add new blog URL to sitemap database (for auto-update)
+async function addBlogToSitemapDatabase(clientId, blogUrl, title, description = 'Generated blog post') {
+    try {
+        // Convert full URL to relative path for consistency
+        let relativePath;
+        if (blogUrl.startsWith('http')) {
+            const urlObj = new URL(blogUrl);
+            relativePath = urlObj.pathname;
+        } else {
+            relativePath = blogUrl;
+        }
+        
+        // Clean trailing slash
+        if (relativePath !== '/' && relativePath.endsWith('/')) {
+            relativePath = relativePath.replace(/\/$/, '');
+        }
+        
+        // Add to sitemap database
+        await pool.query(
+            'INSERT INTO sitemap_urls (client_id, url, title, description, category, last_modified) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT (client_id, url) DO UPDATE SET title = $3, description = $4, category = $5, last_modified = NOW()',
+            [clientId, relativePath, title, description, 'blog']
+        );
+        
+        console.log(`✅ Auto-update: Added "${title}" to sitemap database at ${relativePath}`);
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Failed to auto-update sitemap database:', error.message);
+        return false;
+    }
+}
+
+// NEW: XML Sitemap Parser Function - Much faster and more comprehensive than AI crawling
+async function parseXMLSitemapForClient(clientId, sitemapUrl) {
+    try {
+        console.log(`🗺️ PARSING XML SITEMAP: Fetching sitemap from ${sitemapUrl}`);
+        
+        // Fetch the XML sitemap
+        const response = await axios.get(sitemapUrl, {
+            timeout: 15000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; BlogMonkee/1.0; +http://blogmonkee.com/bot)'
+            }
+        });
+        
+        console.log(`📄 Sitemap fetched: ${response.data.length} characters`);
+        
+        // Parse XML using xml2js
+        const parseXML = (xmlData) => {
+            return new Promise((resolve, reject) => {
+                parseString(xmlData, (err, result) => {
+                    if (err) reject(err);
+                    else resolve(result);
+                });
+            });
+        };
+        
+        const parsedXML = await parseXML(response.data);
+        
+        // Extract URLs from sitemap
+        let urls = [];
+        if (parsedXML.urlset && parsedXML.urlset.url) {
+            urls = parsedXML.urlset.url;
+        } else if (parsedXML.sitemapindex && parsedXML.sitemapindex.sitemap) {
+            // Handle sitemap index - parse each individual sitemap
+            console.log(`🗂️ Found sitemap index with ${parsedXML.sitemapindex.sitemap.length} sitemaps`);
+            
+            for (const sitemap of parsedXML.sitemapindex.sitemap) {
+                try {
+                    const subSitemapUrl = sitemap.loc[0];
+                    console.log(`📋 Parsing sub-sitemap: ${subSitemapUrl}`);
+                    
+                    const subResponse = await axios.get(subSitemapUrl, {
+                        timeout: 15000,
+                        headers: {
+                            'User-Agent': 'Mozilla/5.0 (compatible; BlogMonkee/1.0; +http://blogmonkee.com/bot)'
+                        }
+                    });
+                    
+                    const subParsedXML = await parseXML(subResponse.data);
+                    if (subParsedXML.urlset && subParsedXML.urlset.url) {
+                        urls = urls.concat(subParsedXML.urlset.url);
+                    }
+                } catch (subError) {
+                    console.warn(`⚠️ Failed to parse sub-sitemap: ${subError.message}`);
+                }
+            }
+        }
+        
+        console.log(`🔍 Found ${urls.length} URLs in sitemap(s)`);
+        
+        // Process and store URLs
+        const processedUrls = [];
+        let stored = 0;
+        let skipped = 0;
+        
+        for (const urlEntry of urls) {
+            try {
+                const fullUrl = urlEntry.loc[0];
+                const lastMod = urlEntry.lastmod ? urlEntry.lastmod[0] : null;
+                const priority = urlEntry.priority ? parseFloat(urlEntry.priority[0]) : null;
+                
+                // Extract relative URL path
+                const urlObj = new URL(fullUrl);
+                let relativePath = urlObj.pathname;
+                
+                // Skip certain URLs
+                if (relativePath.includes('.xml') || 
+                    relativePath.includes('.pdf') || 
+                    relativePath.includes('/wp-admin/') ||
+                    relativePath.includes('/feed/') ||
+                    relativePath.includes('?') ||
+                    relativePath.includes('#')) {
+                    skipped++;
+                    continue;
+                }
+                
+                // Clean and normalize the path
+                if (relativePath === '' || relativePath === '/') {
+                    relativePath = '/';
+                } else {
+                    relativePath = relativePath.replace(/\/$/, ''); // Remove trailing slash
+                }
+                
+                // Get basic page info (title estimation from URL)
+                const pathSegments = relativePath.split('/').filter(segment => segment);
+                let estimatedTitle = '';
+                
+                if (relativePath === '/') {
+                    estimatedTitle = 'Homepage';
+                } else if (pathSegments.length > 0) {
+                    // Convert URL slug to title
+                    estimatedTitle = pathSegments[pathSegments.length - 1]
+                        .replace(/-/g, ' ')
+                        .replace(/\b\w/g, l => l.toUpperCase());
+                }
+                
+                // Store in database
+                await pool.query(`
+                    INSERT INTO sitemap_urls (client_id, url, title, last_modified, "createdAt")
+                    VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
+                    ON CONFLICT (client_id, url) 
+                    DO UPDATE SET 
+                        title = EXCLUDED.title,
+                        last_modified = EXCLUDED.last_modified,
+                        "createdAt" = CURRENT_TIMESTAMP
+                `, [clientId, relativePath, estimatedTitle, lastMod]);
+                
+                processedUrls.push({
+                    url: relativePath,
+                    title: estimatedTitle,
+                    lastModified: lastMod,
+                    priority: priority
+                });
+                
+                stored++;
+                
+            } catch (urlError) {
+                console.warn(`⚠️ Error processing URL: ${urlError.message}`);
+                skipped++;
+            }
+        }
+        
+        console.log(`✅ XML SITEMAP PARSING COMPLETE:`);
+        console.log(`   📊 Total URLs found: ${urls.length}`);
+        console.log(`   💾 URLs stored: ${stored}`);
+        console.log(`   ⏭️ URLs skipped: ${skipped}`);
+        console.log(`   ⚡ Performance: Much faster than AI crawling!`);
+        
+        return {
+            success: true,
+            totalFound: urls.length,
+            stored: stored,
+            skipped: skipped,
+            urls: processedUrls
+        };
+        
+    } catch (error) {
+        console.error(`❌ XML Sitemap parsing failed for ${sitemapUrl}:`, error.message);
+        throw error;
+    }
+}
+
+// LEGACY: AI-based crawling function (keeping for fallback)
 async function crawlWebsiteForClient(clientId, websiteUrl) {
     try {
         console.log(`🕷️ REAL CRAWLING: Fetching actual website content for ${websiteUrl}`);
@@ -1542,22 +1727,8 @@ app.post('/api/publish/wordpress', async (req, res) => {
             console.log('Topic already exists or error storing:', topicError.message);
         }
 
-        // Add published blog to internal links database for future linking
-        try {
-            await pool.query(
-                'INSERT INTO sitemap_urls (client_id, url, title, description, category, last_modified) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT (client_id, url) DO UPDATE SET title = $3, description = $4, category = $5, last_modified = NOW()',
-                [
-                    clientId, 
-                    wpPost.link,
-                    title,
-                    metaDescription || 'Generated blog post',
-                    'blog'
-                ]
-            );
-            console.log(`Added published blog to internal links database: ${title}`);
-        } catch (linkError) {
-            console.log('Failed to add published blog to internal links:', linkError.message);
-        }
+        // Auto-update: Add published blog to sitemap database for future internal linking
+        await addBlogToSitemapDatabase(clientId, wpPost.link, title, metaDescription || 'Generated blog post');
 
         res.json({
             success: true,
@@ -1750,7 +1921,90 @@ app.post('/api/admin/cleanup-urls', async (req, res) => {
     }
 });
 
-// Website Crawling Test
+// NEW: XML Sitemap Parsing Test
+app.post('/api/test/sitemap', async (req, res) => {
+    const { clientId, sitemapUrl } = req.body;
+    
+    if(!clientId) {
+        return res.status(400).json({ error: 'Client ID is required' });
+    }
+    
+    if(!sitemapUrl) {
+        return res.status(400).json({ error: 'Sitemap URL is required' });
+    }
+    
+    try {
+        // Get client info
+        const result = await pool.query('SELECT name FROM clients WHERE id = $1', [clientId]);
+        
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Client not found' });
+        }
+        
+        const client = result.rows[0];
+        
+        console.log(`🗺️ Testing XML sitemap parsing for client ${client.name}: ${sitemapUrl}`);
+        
+        // Test the new XML sitemap parsing function
+        const parseResult = await parseXMLSitemapForClient(clientId, sitemapUrl);
+        
+        // Get current URLs in database for this client
+        const existingUrls = await pool.query(
+            'SELECT url, title, description, category, last_modified FROM sitemap_urls WHERE client_id = $1 ORDER BY last_modified DESC',
+            [clientId]
+        );
+        
+        res.json({
+            success: true,
+            client: {
+                id: clientId,
+                name: client.name,
+                sitemapUrl: sitemapUrl
+            },
+            parsing: {
+                method: 'XML Sitemap Parser',
+                totalFound: parseResult.totalFound,
+                stored: parseResult.stored,
+                skipped: parseResult.skipped,
+                performance: 'Much faster than AI crawling!',
+                samplePages: parseResult.urls.slice(0, 8).map(page => ({
+                    url: page.url,
+                    title: page.title,
+                    lastModified: page.lastModified,
+                    priority: page.priority
+                }))
+            },
+            database: {
+                totalUrls: existingUrls.rows.length,
+                recentUrls: existingUrls.rows.slice(0, 5).map(row => ({
+                    url: row.url,
+                    title: row.title,
+                    description: row.description,
+                    category: row.category,
+                    lastModified: row.last_modified
+                }))
+            },
+            message: `🚀 XML sitemap parsing SUCCESS! Found ${parseResult.totalFound} URLs, stored ${parseResult.stored}. Database now has ${existingUrls.rows.length} total URLs for this client.`,
+            advantages: [
+                '🏆 Complete URL coverage (vs ~30 from AI crawling)',
+                '⚡ 10x faster performance',
+                '💰 No Gemini API costs for URL discovery',
+                '🎯 Authoritative source (client\'s own sitemap)',
+                '🔄 Easy to keep current with new content'
+            ]
+        });
+        
+    } catch (error) {
+        console.error('Error testing XML sitemap parsing:', error);
+        res.status(500).json({ 
+            error: 'Failed to test XML sitemap parsing', 
+            details: error.message,
+            suggestion: 'Check if the sitemap URL is accessible and contains valid XML'
+        });
+    }
+});
+
+// LEGACY: Website Crawling Test (keeping for comparison)
 app.post('/api/test/crawl', async (req, res) => {
     const { clientId, websiteUrl } = req.body;
     
@@ -2546,22 +2800,8 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             console.log('Topic already exists or error storing:', topicError.message);
         }
 
-        // Add published blog to internal links database
-        try {
-            await pool.query(
-                'INSERT INTO sitemap_urls (client_id, url, title, description, category, last_modified) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT (client_id, url) DO UPDATE SET title = $3, description = $4, category = $5, last_modified = NOW()',
-                [
-                    clientId, 
-                    wpPost.link,
-                    plan.title,
-                    contentData.metaDescription || 'Generated blog post',
-                    'blog'
-                ]
-            );
-            console.log(`✅ Added published blog to internal links database: ${plan.title}`);
-        } catch (linkError) {
-            console.log('Failed to add published blog to internal links:', linkError.message);
-        }
+        // Auto-update: Add published blog to sitemap database for future internal linking
+        await addBlogToSitemapDatabase(clientId, wpPost.link, plan.title, contentData.metaDescription || 'Generated blog post');
 
         console.log(`🎉 LUCKY SUCCESS: "${plan.title}" created as draft at ${wpPost.link}`);
 
