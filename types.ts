@@ -3,10 +3,10 @@ export interface Client {
   name: string;
   industry: string;
   websiteUrl: string;
+  sitemapUrl?: string;
   uniqueValueProp: string;
   brandVoice: string;
   contentStrategy: string;
-
   wp: { url: string; username: string; appPassword?: string };
   sitemapUrls?: string[];
   usedTopics?: string[];

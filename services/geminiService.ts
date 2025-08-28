@@ -117,3 +117,11 @@ export const testWebsiteCrawling = (clientId: string, websiteUrl: string): Promi
         body: JSON.stringify({ clientId, websiteUrl }),
     }).then(res => handleResponse<{ success: boolean, message: string, client: any, crawl: any, database: any, error?: string, details?: string }>(res));
 };
+
+export const testSitemapParsing = (clientId: string, sitemapUrl: string): Promise<{ success: boolean, message: string, client: any, parsing: any, database: any, advantages: string[], error?: string, details?: string, suggestion?: string }> => {
+    return fetch(`${BASE_URL}/api/test/sitemap`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientId, sitemapUrl }),
+    }).then(res => handleResponse<{ success: boolean, message: string, client: any, parsing: any, database: any, advantages: string[], error?: string, details?: string, suggestion?: string }>(res));
+};

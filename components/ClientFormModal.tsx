@@ -15,10 +15,10 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
       name: '',
       industry: '',
       websiteUrl: '',
+      sitemapUrl: '',
       uniqueValueProp: '',
       brandVoice: '',
       contentStrategy: '',
-
       wp: { url: '', username: '' }
     }
   );
@@ -75,6 +75,7 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
             <InputField label="Company Name" name="name" value={formData.name || ''} onChange={handleChange} required />
             <InputField label="Industry" name="industry" value={formData.industry || ''} onChange={handleChange} required />
             <InputField label="Website URL" name="websiteUrl" value={formData.websiteUrl || ''} onChange={handleChange} type="url" />
+            <InputField label="XML Sitemap URL" name="sitemapUrl" value={formData.sitemapUrl || ''} onChange={handleChange} type="url" placeholder="https://yoursite.com/sitemap.xml" />
 
             <h3 className="text-lg font-semibold text-slate-300 pt-4 border-t border-slate-700">Brand Details</h3>
             <TextareaField label="Unique Value Proposition" name="uniqueValueProp" value={formData.uniqueValueProp || ''} onChange={handleChange} />
@@ -83,12 +84,18 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
 
             <h3 className="text-lg font-semibold text-slate-300 pt-4 border-t border-slate-700">SEO & Internal Linking</h3>
             <div className="text-sm text-slate-400 p-3 bg-slate-700 rounded-md">
-                <p className="font-medium mb-2">🕷️ Intelligent Website Crawling</p>
-                <p>When you save this client, our AI will automatically crawl the website URL to discover pages for internal linking. Each published blog will also be added to the internal links database.</p>
+                <p className="font-medium mb-2">🗺️ XML Sitemap Parsing (Recommended)</p>
+                <p>Provide your XML sitemap URL for comprehensive page discovery. This is much faster and more complete than AI crawling - it gets every page you want indexed! Each published blog will automatically be added to the internal links database.</p>
+                <p className="mt-2 text-xs text-cyan-400">💡 Tip: Usually found at yoursite.com/sitemap.xml or in robots.txt</p>
             </div>
             
-            {/* Show website crawl test button if client exists and has website URL */}
-            {client?.id && formData.websiteUrl && (
+            {/* Show sitemap test button if client exists and has sitemap URL */}
+            {client?.id && formData.sitemapUrl && (
+                <SitemapTestButton clientId={client.id} sitemapUrl={formData.sitemapUrl} />
+            )}
+            
+            {/* Fallback: Show website crawl test button if no sitemap but has website URL */}
+            {client?.id && !formData.sitemapUrl && formData.websiteUrl && (
                 <WebsiteCrawlTestButton clientId={client.id} websiteUrl={formData.websiteUrl} />
             )}
 
@@ -258,6 +265,84 @@ const WebsiteCrawlTestButton = ({ clientId, websiteUrl }) => {
                             <p className="font-medium">✗ Website crawl test failed</p>
                             <p>{testResult.error}</p>
                             {testResult.details && <p className="text-xs mt-1">{testResult.details}</p>}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// XML Sitemap Test Button Component
+const SitemapTestButton = ({ clientId, sitemapUrl }) => {
+    const [testing, setTesting] = useState(false);
+    const [testResult, setTestResult] = useState(null);
+
+    const handleTest = async () => {
+        setTesting(true);
+        setTestResult(null);
+        try {
+            const result = await api.testSitemapParsing(clientId, sitemapUrl);
+            setTestResult(result);
+        } catch (err) {
+            setTestResult({ 
+                success: false, 
+                error: 'Sitemap parsing test failed', 
+                details: err.message 
+            });
+        }
+        setTesting(false);
+    };
+
+    return (
+        <div className="border border-slate-600 p-4 rounded-md bg-slate-700">
+            <div className="flex justify-between items-center mb-3">
+                <h4 className="font-medium text-slate-200">🗺️ XML Sitemap Test</h4>
+                <button
+                    type="button"
+                    onClick={handleTest}
+                    disabled={testing}
+                    className="bg-cyan-600 hover:bg-cyan-700 text-white px-3 py-1 rounded text-sm disabled:bg-slate-500 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                    {testing && <Spinner />}
+                    {testing ? 'Testing...' : 'Test Sitemap'}
+                </button>
+            </div>
+
+            {testResult && (
+                <div className={`p-3 rounded-md text-sm ${testResult.success ? 'bg-green-800 text-green-200' : 'bg-red-800 text-red-200'}`}>
+                    {testResult.success ? (
+                        <div>
+                            <p className="font-medium mb-2">✅ {testResult.message}</p>
+                            <div className="grid grid-cols-3 gap-4 mb-3 text-xs">
+                                <div><strong>Found:</strong> {testResult.parsing?.totalFound || 0} URLs</div>
+                                <div><strong>Stored:</strong> {testResult.parsing?.stored || 0} URLs</div>
+                                <div><strong>Total DB:</strong> {testResult.database?.totalUrls || 0} URLs</div>
+                            </div>
+                            <div className="mb-2">
+                                <strong>🏆 Advantages:</strong>
+                                <ul className="list-disc list-inside text-xs mt-1">
+                                    {testResult.advantages?.map((advantage, index) => (
+                                        <li key={index}>{advantage}</li>
+                                    ))}
+                                </ul>
+                            </div>
+                            {testResult.parsing?.samplePages && testResult.parsing.samplePages.length > 0 && (
+                                <div>
+                                    <strong>📄 Sample pages found:</strong>
+                                    <ul className="list-disc list-inside text-xs mt-1 max-h-20 overflow-y-auto">
+                                        {testResult.parsing.samplePages.slice(0, 5).map((page, index) => (
+                                            <li key={index}>{page.url} - {page.title}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div>
+                            <p className="font-medium">❌ {testResult.error}</p>
+                            {testResult.details && <p className="text-xs mt-1">{testResult.details}</p>}
+                            {testResult.suggestion && <p className="text-xs mt-1 text-yellow-200">💡 {testResult.suggestion}</p>}
                         </div>
                     )}
                 </div>
