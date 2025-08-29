@@ -2758,26 +2758,33 @@ app.post('/api/generate/complete-blog', async (req, res) => {
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
-            🚨 MANDATORY EXTERNAL LINKS - CRITICAL REQUIREMENT:
-            - YOU MUST INCLUDE EXACTLY 2-8 WORKING EXTERNAL LINKS - NO EXCEPTIONS
-            - Content will be REJECTED if it has fewer than 2 external links
-            - All links will be tested in real-time - broken links cause rejection
-            - ✅ ONLY USE THESE VERIFIED WORKING URLS (choose 2-8 that are relevant):
-              ${getVerifiedExternalLinks(client.industry).map(url => `* ${url}`).join('\n              ')}
+            🚨 MANDATORY EXTERNAL LINKS - STRICT ENFORCEMENT:
+            - YOU MUST INCLUDE EXACTLY 2-8 EXTERNAL LINKS FROM THE LIST BELOW
+            - 🚫 DO NOT CREATE ANY URLS - COPY EXACTLY FROM THE VERIFIED LIST
+            - 🚫 ABSOLUTELY NO reuters.com, wsj.com, bloomberg.com, or ANY paywall sites
+            - 🚫 NO GUESSING OR CREATING URLs - ONLY USE THE EXACT URLS PROVIDED
+            - ✅ COPY AND PASTE THESE VERIFIED WORKING URLS (choose 2-8):
+              ${getVerifiedExternalLinks(client.industry).map(url => `* ${url} ← USE THIS EXACT URL`).join('\n              ')}
             
-            MANDATORY LINKING RULES:
-            - Use EXACT URLs from the list above - DO NOT modify or add paths
-            - Format: <a href="EXACT_URL_FROM_LIST" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
-            - Distribute 2-8 links naturally throughout the article
-            - Each link must provide genuine value and context
+            STRICT COPYING RULES:
+            - COPY the exact URL from the list above - character for character
+            - DO NOT add /pages, /articles, or any additional paths
+            - DO NOT modify the URLs in any way
+            - Format: <a href="EXACT_COPIED_URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
             
-            ❌ CONTENT WILL BE REJECTED IF:
-            - Fewer than 2 external links included
-            - Any external links return 404 errors or are inaccessible
-            - URLs not from the verified list above
-            - Links missing target="_blank" rel="noopener noreferrer"
+            EXAMPLES OF CORRECT COPYING:
+            - Copy: https://www.osha.gov (✅ CORRECT)
+            - Do NOT create: https://www.osha.gov/construction-safety (❌ WRONG - will fail validation)
+            - Copy: https://www.nrca.net (✅ CORRECT)
+            - Do NOT create: https://www.nrca.net/roofing-guidelines (❌ WRONG - will fail validation)
             
-            This is a MANDATORY requirement - not optional.
+            ❌ YOUR CONTENT WILL BE COMPLETELY REJECTED IF:
+            - You use reuters.com, wsj.com, or any URL not in the verified list
+            - You create or modify any URLs instead of copying exactly
+            - You have fewer than 2 external links
+            - Any links return 404 or 401 errors during real-time validation
+            
+            ONLY USE THE VERIFIED URLS PROVIDED - NO EXCEPTIONS!
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
@@ -3066,26 +3073,33 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
-            🚨 MANDATORY EXTERNAL LINKS - CRITICAL REQUIREMENT:
-            - YOU MUST INCLUDE EXACTLY 2-8 WORKING EXTERNAL LINKS - NO EXCEPTIONS
-            - Content will be REJECTED if it has fewer than 2 external links
-            - All links will be tested in real-time - broken links cause rejection
-            - ✅ ONLY USE THESE VERIFIED WORKING URLS (choose 2-8 that are relevant):
-              ${getVerifiedExternalLinks(client.industry).map(url => `* ${url}`).join('\n              ')}
+            🚨 MANDATORY EXTERNAL LINKS - STRICT ENFORCEMENT:
+            - YOU MUST INCLUDE EXACTLY 2-8 EXTERNAL LINKS FROM THE LIST BELOW
+            - 🚫 DO NOT CREATE ANY URLS - COPY EXACTLY FROM THE VERIFIED LIST
+            - 🚫 ABSOLUTELY NO reuters.com, wsj.com, bloomberg.com, or ANY paywall sites
+            - 🚫 NO GUESSING OR CREATING URLs - ONLY USE THE EXACT URLS PROVIDED
+            - ✅ COPY AND PASTE THESE VERIFIED WORKING URLS (choose 2-8):
+              ${getVerifiedExternalLinks(client.industry).map(url => `* ${url} ← USE THIS EXACT URL`).join('\n              ')}
             
-            MANDATORY LINKING RULES:
-            - Use EXACT URLs from the list above - DO NOT modify or add paths
-            - Format: <a href="EXACT_URL_FROM_LIST" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
-            - Distribute 2-8 links naturally throughout the article
-            - Each link must provide genuine value and context
+            STRICT COPYING RULES:
+            - COPY the exact URL from the list above - character for character
+            - DO NOT add /pages, /articles, or any additional paths
+            - DO NOT modify the URLs in any way
+            - Format: <a href="EXACT_COPIED_URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
             
-            ❌ CONTENT WILL BE REJECTED IF:
-            - Fewer than 2 external links included
-            - Any external links return 404 errors or are inaccessible
-            - URLs not from the verified list above
-            - Links missing target="_blank" rel="noopener noreferrer"
+            EXAMPLES OF CORRECT COPYING:
+            - Copy: https://www.osha.gov (✅ CORRECT)
+            - Do NOT create: https://www.osha.gov/construction-safety (❌ WRONG - will fail validation)
+            - Copy: https://www.nrca.net (✅ CORRECT)
+            - Do NOT create: https://www.nrca.net/roofing-guidelines (❌ WRONG - will fail validation)
             
-            This is a MANDATORY requirement - not optional.
+            ❌ YOUR CONTENT WILL BE COMPLETELY REJECTED IF:
+            - You use reuters.com, wsj.com, or any URL not in the verified list
+            - You create or modify any URLs instead of copying exactly
+            - You have fewer than 2 external links
+            - Any links return 404 or 401 errors during real-time validation
+            
+            ONLY USE THE VERIFIED URLS PROVIDED - NO EXCEPTIONS!
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
