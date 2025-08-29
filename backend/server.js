@@ -1313,16 +1313,16 @@ app.get('/api/clients/:id', async (req, res) => {
 
 // CREATE a new client
 app.post('/api/clients', async (req, res) => {
-  const { name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp } = req.body;
+  const { name, industry, websiteUrl, sitemapUrl, uniqueValueProp, brandVoice, contentStrategy, wp } = req.body;
   const newClient = {
     id: crypto.randomUUID(),
-    name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp
+    name, industry, websiteUrl, sitemapUrl, uniqueValueProp, brandVoice, contentStrategy, wp
   };
   try {
     const result = await pool.query(
-      `INSERT INTO clients (id, name, industry, "websiteUrl", "uniqueValueProp", "brandVoice", "contentStrategy", wp) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [newClient.id, newClient.name, newClient.industry, newClient.websiteUrl, newClient.uniqueValueProp, newClient.brandVoice, newClient.contentStrategy, newClient.wp]
+      `INSERT INTO clients (id, name, industry, "websiteUrl", "sitemapUrl", "uniqueValueProp", "brandVoice", "contentStrategy", wp) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [newClient.id, newClient.name, newClient.industry, newClient.websiteUrl, newClient.sitemapUrl, newClient.uniqueValueProp, newClient.brandVoice, newClient.contentStrategy, newClient.wp]
     );
     
     // Crawl website for internal links if websiteUrl is provided
@@ -1346,18 +1346,19 @@ app.post('/api/clients', async (req, res) => {
 
 // UPDATE a client
 app.put('/api/clients/:id', async (req, res) => {
-    const { name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp } = req.body;
+    const { name, industry, websiteUrl, sitemapUrl, uniqueValueProp, brandVoice, contentStrategy, wp } = req.body;
     try {
-        // Get current client to compare websiteUrl
-        const currentClient = await pool.query('SELECT "websiteUrl" FROM clients WHERE id = $1', [req.params.id]);
+        // Get current client to compare websiteUrl and sitemapUrl
+        const currentClient = await pool.query('SELECT "websiteUrl", "sitemapUrl" FROM clients WHERE id = $1', [req.params.id]);
         const currentWebsiteUrl = currentClient.rows[0]?.websiteUrl;
+        const currentSitemapUrl = currentClient.rows[0]?.sitemapUrl;
         
         const result = await pool.query(
             `UPDATE clients SET 
-             name = $1, industry = $2, "websiteUrl" = $3, "uniqueValueProp" = $4, 
-             "brandVoice" = $5, "contentStrategy" = $6, wp = $7, "updatedAt" = NOW()
-             WHERE id = $8 RETURNING *`,
-            [name, industry, websiteUrl, uniqueValueProp, brandVoice, contentStrategy, wp, req.params.id]
+             name = $1, industry = $2, "websiteUrl" = $3, "sitemapUrl" = $4, "uniqueValueProp" = $5, 
+             "brandVoice" = $6, "contentStrategy" = $7, wp = $8, "updatedAt" = NOW()
+             WHERE id = $9 RETURNING *`,
+            [name, industry, websiteUrl, sitemapUrl, uniqueValueProp, brandVoice, contentStrategy, wp, req.params.id]
         );
         
         if (result.rows.length > 0) {
@@ -1372,6 +1373,20 @@ app.put('/api/clients/:id', async (req, res) => {
                     console.log(`Website crawl completed for client: ${name}`);
                 } catch (crawlError) {
                     console.log(`Failed to crawl website for client ${name}:`, crawlError.message);
+                }
+            }
+            
+            // If sitemap URL is provided and changed, parse and store it
+            if (sitemapUrl && sitemapUrl !== currentSitemapUrl) {
+                try {
+                    console.log(`Sitemap URL changed for client ${name}, starting XML sitemap parsing...`);
+                    // Clear existing URLs for this client
+                    await pool.query('DELETE FROM sitemap_urls WHERE client_id = $1', [req.params.id]);
+                    // Parse and store new sitemap
+                    await parseXMLSitemapForClient(req.params.id, sitemapUrl);
+                    console.log(`XML sitemap parsing completed for client: ${name}`);
+                } catch (sitemapError) {
+                    console.log(`Failed to parse XML sitemap for client ${name}:`, sitemapError.message);
                 }
             }
             
