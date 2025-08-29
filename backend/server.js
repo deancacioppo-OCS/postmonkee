@@ -287,19 +287,34 @@ async function generateFeaturedImage(title, industry) {
     
     try {
         // Create a detailed, professional prompt for DALL-E 3
-        const imagePrompt = `Create a professional, modern featured image for a blog post titled "${title}" in the ${industry} industry. 
+        const imagePrompt = `Create a PHOTOREALISTIC featured image for a blog post titled "${title}" in the ${industry} industry. 
 
-CRITICAL REQUIREMENTS:
+CRITICAL REQUIREMENTS - PHOTOREALISTIC STYLE:
+- PHOTOREALISTIC photography style - no illustrations, cartoons, or artistic renderings
+- Real-world photography aesthetic with natural lighting and textures
+- High-definition, crisp detail that looks like a professional photograph
 - NO TEXT or very minimal text in the image
-- Visually represent the title/topic through imagery, symbols, and concepts
-- Professional quality suitable for a blog header
-- Clean, modern design with landscape orientation
-- High quality and engaging
-- Appropriate for ${industry} industry content
-- Use visual metaphors and symbolic elements to convey the topic
-- Focus on imagery that tells the story without words
+- Authentic, believable scenes and objects
+- Professional camera quality with proper depth of field
+- Natural colors and realistic materials/surfaces
 
-The image should communicate the essence of "${title}" through pure visual elements, professional photography style, and symbolic representation rather than text overlay.`;
+VISUAL CONTENT:
+- Visually represent the title/topic through real objects, people, or environments
+- Use actual business settings, real equipment, or genuine scenarios
+- Professional quality suitable for a blog header
+- Clean composition with landscape orientation
+- Appropriate for ${industry} industry content
+- Focus on realistic imagery that tells the story without words
+
+PHOTOGRAPHY STYLE:
+- Shot with professional camera equipment
+- Natural or professional studio lighting
+- Sharp focus with realistic depth of field
+- Authentic textures and materials
+- Real-world environments and settings
+- High-resolution photographic quality
+
+The image should look like a genuine photograph taken by a professional photographer, communicating the essence of "${title}" through photorealistic visual elements.`;
 
         // Generate image using OpenAI DALL-E 3 (standard size)
         const response = await openai.images.generate({
@@ -307,7 +322,7 @@ The image should communicate the essence of "${title}" through pure visual eleme
             prompt: imagePrompt,
             n: 1,
             size: "1024x1024", // Standard size, will be resized to landscape
-            quality: "standard", // Standard quality for faster generation
+            quality: "hd", // HD quality for enhanced photorealism
             response_format: "b64_json"
         });
         
