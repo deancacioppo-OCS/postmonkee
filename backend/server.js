@@ -87,6 +87,23 @@ async function initializeDb() {
       );
     `);
 
+    // Create topic external links table for real-time Google Search results
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS topic_external_links (
+        id SERIAL PRIMARY KEY,
+        client_id TEXT NOT NULL,
+        topic TEXT NOT NULL,
+        url TEXT NOT NULL,
+        title TEXT,
+        domain TEXT,
+        authority_score INTEGER DEFAULT 0,
+        is_validated BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+        UNIQUE(client_id, topic, url)
+      );
+    `);
+
     // Add missing columns to existing sitemap_urls table
     const columnsToAdd = [
       { name: 'title', type: 'TEXT' },
@@ -917,8 +934,56 @@ async function generateUniqueTopicForClient(clientId, client) {
         const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
         
         console.log(`✅ Generated unique topic: "${topic}" (avoiding ${existingTopics.rows.length} existing topics)`);
-        
-        return { topic, sources, existingTopicsCount: existingTopics.rows.length };
+
+        // REVOLUTIONARY: Extract and validate Google Search URLs for topic-specific external links
+        console.log(`🔍 Processing ${sources.length} Google Search sources for real-time external links`);
+        const topicalUrls = [];
+
+        for (const source of sources) {
+            if (source.web && source.web.uri) {
+                const url = source.web.uri;
+                try {
+                    // Real-time validation
+                    const isValid = await validateUrlExists(url);
+                    if (isValid) {
+                        const domain = new URL(url).hostname.toLowerCase();
+                        
+                        // Authority scoring system
+                        let authorityScore = 0;
+                        if (domain.includes('.gov')) authorityScore = 100;
+                        else if (domain.includes('.edu')) authorityScore = 90;
+                        else if (domain.includes('nrca.net') || domain.includes('osha.gov') || domain.includes('iccsafe.org')) authorityScore = 85;
+                        else if (domain.includes('bbc.com') || domain.includes('cnbc.com') || domain.includes('cdc.gov')) authorityScore = 75;
+                        else if (domain.includes('wikipedia.org')) authorityScore = 40;
+                        else authorityScore = 60;
+                        
+                        // Store validated topical external link
+                        await pool.query(
+                            'INSERT INTO topic_external_links (client_id, topic, url, domain, authority_score, is_validated) VALUES ($1, $2, $3, $4, $5, TRUE) ON CONFLICT (client_id, topic, url) DO UPDATE SET authority_score = $5, is_validated = TRUE',
+                            [clientId, topic, url, domain, authorityScore]
+                        );
+                        
+                        topicalUrls.push({ url, domain, authorityScore });
+                        console.log(`✅ Validated topical link: ${url} [Authority: ${authorityScore}]`);
+                    } else {
+                        console.log(`❌ Invalid topical link: ${url}`);
+                    }
+                } catch (error) {
+                    console.log(`⚠️ Error validating topical URL ${url}:`, error.message);
+                }
+            }
+        }
+
+        // Sort by authority score
+        topicalUrls.sort((a, b) => b.authorityScore - a.authorityScore);
+        console.log(`🎯 Real-time topical external links: ${topicalUrls.length} validated URLs stored`);
+
+        return { 
+            topic, 
+            sources, 
+            existingTopicsCount: existingTopics.rows.length,
+            topicalExternalLinks: topicalUrls.map(link => link.url)
+        };
         
     } catch (error) {
         console.error('Error generating unique topic:', error.message);
@@ -2758,13 +2823,11 @@ app.post('/api/generate/complete-blog', async (req, res) => {
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
-            🚨 MANDATORY EXTERNAL LINKS - STRICT ENFORCEMENT:
-            - YOU MUST INCLUDE EXACTLY 2-8 EXTERNAL LINKS FROM THE LIST BELOW
-            - 🚫 DO NOT CREATE ANY URLS - COPY EXACTLY FROM THE VERIFIED LIST
-            - 🚫 ABSOLUTELY NO reuters.com, wsj.com, bloomberg.com, or ANY paywall sites
-            - 🚫 NO GUESSING OR CREATING URLs - ONLY USE THE EXACT URLS PROVIDED
-            - ✅ COPY AND PASTE THESE VERIFIED WORKING URLS (choose 2-8):
-              ${getVerifiedExternalLinks(client.industry).map(url => `* ${url} ← USE THIS EXACT URL`).join('\n              ')}
+            🚀 REAL-TIME TOPICAL EXTERNAL LINKS - GOOGLE SEARCH POWERED:
+            - These URLs were found via Google Search specifically for your topic: "${plan.title}"
+            - All URLs have been validated in real-time and are guaranteed to work
+            - ✅ USE THESE TOPIC-SPECIFIC VALIDATED URLS (choose 2-8 most relevant):
+              ${topicalExternalLinks.map(url => `* ${url} ← TOPIC-SPECIFIC & VALIDATED`).join('\n              ')}
             
             STRICT COPYING RULES:
             - COPY the exact URL from the list above - character for character
@@ -2995,6 +3058,35 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             console.log('Failed to fetch internal links for lucky blog:', linkError.message);
         }
 
+        // Step 4.5: Get real-time topical external links from Google Search
+        console.log(`🔍 Step 4.5: Retrieving topic-specific external links for "${plan.title}"`);
+        let topicalExternalLinks = [];
+        try {
+            const topicalLinksResult = await pool.query(
+                'SELECT url, authority_score, domain FROM topic_external_links WHERE client_id = $1 AND topic = $2 AND is_validated = TRUE ORDER BY authority_score DESC LIMIT 8',
+                [clientId, plan.title]
+            );
+            
+            topicalExternalLinks = topicalLinksResult.rows.map(row => row.url);
+            console.log(`🎯 Found ${topicalExternalLinks.length} validated topical external links`);
+            
+            topicalLinksResult.rows.forEach((link, index) => {
+                console.log(`🔗 Topical Link ${index + 1}: ${link.url} [Authority: ${link.authority_score}] [${link.domain}]`);
+            });
+            
+        } catch (topicalError) {
+            console.log('Failed to fetch topical external links:', topicalError.message);
+        }
+
+        // Fallback to verified URLs if insufficient topical links
+        if (topicalExternalLinks.length < 2) {
+            console.warn(`⚠️ Only ${topicalExternalLinks.length} topical links available, adding verified fallbacks`);
+            const verifiedLinks = getVerifiedExternalLinks(client.industry);
+            const fallbackNeeded = Math.max(0, 4 - topicalExternalLinks.length);
+            topicalExternalLinks = [...topicalExternalLinks, ...verifiedLinks.slice(0, fallbackNeeded)];
+            console.log(`🔄 Added ${fallbackNeeded} verified fallback links, total: ${topicalExternalLinks.length}`);
+        }
+
         const internalLinksContext = internalLinks.length > 0 
             ? `\nAvailable Internal Links (use these EXACT templates, maximum ONE use per template):
                ${internalLinks.map((link, index) => 
@@ -3073,13 +3165,11 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
-            🚨 MANDATORY EXTERNAL LINKS - STRICT ENFORCEMENT:
-            - YOU MUST INCLUDE EXACTLY 2-8 EXTERNAL LINKS FROM THE LIST BELOW
-            - 🚫 DO NOT CREATE ANY URLS - COPY EXACTLY FROM THE VERIFIED LIST
-            - 🚫 ABSOLUTELY NO reuters.com, wsj.com, bloomberg.com, or ANY paywall sites
-            - 🚫 NO GUESSING OR CREATING URLs - ONLY USE THE EXACT URLS PROVIDED
-            - ✅ COPY AND PASTE THESE VERIFIED WORKING URLS (choose 2-8):
-              ${getVerifiedExternalLinks(client.industry).map(url => `* ${url} ← USE THIS EXACT URL`).join('\n              ')}
+            🚀 REAL-TIME TOPICAL EXTERNAL LINKS - GOOGLE SEARCH POWERED:
+            - These URLs were found via Google Search specifically for your topic: "${plan.title}"
+            - All URLs have been validated in real-time and are guaranteed to work
+            - ✅ USE THESE TOPIC-SPECIFIC VALIDATED URLS (choose 2-8 most relevant):
+              ${topicalExternalLinks.map(url => `* ${url} ← TOPIC-SPECIFIC & VALIDATED`).join('\n              ')}
             
             STRICT COPYING RULES:
             - COPY the exact URL from the list above - character for character
@@ -3406,6 +3496,17 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
 
         // Auto-update: Add published blog to sitemap database for future internal linking
         await addBlogToSitemapDatabase(clientId, wpPost.link, plan.title, contentData.metaDescription || 'Generated blog post');
+
+        // Cleanup topical external links to prevent reuse
+        try {
+            const cleanupResult = await pool.query(
+                'DELETE FROM topic_external_links WHERE client_id = $1 AND topic = $2',
+                [clientId, plan.title]
+            );
+            console.log(`🧹 Cleaned up ${cleanupResult.rowCount} topical external links for "${plan.title}"`);
+        } catch (cleanupError) {
+            console.log('⚠️ Failed to cleanup topical links:', cleanupError.message);
+        }
 
         console.log(`🎉 LUCKY SUCCESS: "${plan.title}" created as draft at ${wpPost.link}`);
 
