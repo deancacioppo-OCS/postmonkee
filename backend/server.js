@@ -614,7 +614,9 @@ function getVerifiedExternalLinks(industry) {
             'https://www.roofingcontractor.com',
             'https://www.osha.gov',
             'https://www.iccsafe.org',
-            'https://www.nist.gov'
+            'https://www.nist.gov',
+            'https://www.epa.gov',
+            'https://www.energystar.gov'
         ],
         'healthcare': [
             'https://www.cdc.gov',
@@ -624,11 +626,11 @@ function getVerifiedExternalLinks(industry) {
             'https://www.hfma.org'
         ],
         'general': [
-            'https://www.reuters.com',
             'https://www.bbc.com',
-            'https://www.wsj.com',
-            'https://www.bloomberg.com',
             'https://www.cnbc.com',
+            'https://www.cdc.gov',
+            'https://www.osha.gov',
+            'https://www.census.gov',
             'https://en.wikipedia.org'
         ]
     };
@@ -2039,14 +2041,29 @@ app.post('/api/publish/wordpress', async (req, res) => {
         console.log('WordPress post data prepared:', { title, contentLength: content.length, status: postData.status, tagIds });
 
         // Create WordPress post using REST API
+        // Enhanced WordPress API call with WordFence compatibility
+        console.log('📝 Creating WordPress post...');
+        console.log('🔗 WordPress API URL:', wpApiUrl);
+        console.log('📊 Post data:', { 
+            title: postData.title, 
+            contentLength: postData.content.length, 
+            status: postData.status,
+            hasFeaturedMedia: !!postData.featured_media 
+        });
+        
         const wpResponse = await fetch(wpApiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
+                'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`,
+                'User-Agent': 'BlogMonkee/1.0 (+https://blogmonkee.com)',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify(postData)
         });
+        
+        console.log('📊 WordPress API response status:', wpResponse.status);
+        console.log('📋 WordPress API response headers:', Object.fromEntries(wpResponse.headers.entries()));
 
         console.log('WordPress API response status:', wpResponse.status);
 
@@ -3285,19 +3302,80 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         
         const wpApiUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/posts`;
         
+        // Enhanced WordPress API call with WordFence compatibility
+        console.log('📝 Creating WordPress post...');
+        console.log('🔗 WordPress API URL:', wpApiUrl);
+        console.log('📊 Post data:', { 
+            title: postData.title, 
+            contentLength: postData.content.length, 
+            status: postData.status,
+            hasFeaturedMedia: !!postData.featured_media 
+        });
+        
         const wpResponse = await fetch(wpApiUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
+                'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`,
+                'User-Agent': 'BlogMonkee/1.0 (+https://blogmonkee.com)',
+                'X-Requested-With': 'XMLHttpRequest'
             },
             body: JSON.stringify(postData)
         });
+        
+        console.log('📊 WordPress API response status:', wpResponse.status);
+        console.log('📋 WordPress API response headers:', Object.fromEntries(wpResponse.headers.entries()));
 
         if (!wpResponse.ok) {
             const errorText = await wpResponse.text();
-            console.error('WordPress publishing failed:', errorText);
-            throw new Error(`WordPress publishing failed: ${wpResponse.status} ${wpResponse.statusText}`);
+            console.error('❌ WordPress publishing failed:', errorText);
+            console.error('📊 Response status:', wpResponse.status);
+            console.error('📋 Response headers:', Object.fromEntries(wpResponse.headers.entries()));
+            
+            // WordFence-specific error handling
+            let errorMessage = `WordPress publishing failed: ${wpResponse.status} ${wpResponse.statusText}`;
+            let suggestions = [];
+            
+            if (wpResponse.status === 403) {
+                errorMessage = '🛡️ WordPress API access FORBIDDEN - WordFence is likely blocking the request';
+                suggestions = [
+                    'Go to WordFence → All Options → Brute Force Protection',
+                    'Ensure "Disable WordPress application passwords" is UNCHECKED',
+                    'Check WordFence → Tools → Live Traffic for blocked requests',
+                    'Add Blog MONKEE IP to WordFence allowlist',
+                    'Verify REST API is enabled: Settings → Permalinks → Save',
+                    'Check user has publish_posts capability'
+                ];
+            } else if (wpResponse.status === 401) {
+                errorMessage = '🔐 WordPress authentication failed';
+                suggestions = [
+                    'Verify WordPress username and app password are correct',
+                    'Check if Application Passwords are enabled',
+                    'Ensure user has sufficient permissions to create posts',
+                    'Try regenerating the Application Password'
+                ];
+            } else if (wpResponse.status === 429) {
+                errorMessage = '⏱️ Rate limit exceeded - WordFence is throttling requests';
+                suggestions = [
+                    'Check WordFence rate limiting settings',
+                    'Add Blog MONKEE to WordFence trusted sources',
+                    'Wait 5-10 minutes before trying again',
+                    'Check WordFence → All Options → Rate Limiting'
+                ];
+            } else if (wpResponse.status >= 500) {
+                errorMessage = '🔥 WordPress server error';
+                suggestions = [
+                    'Check WordPress site is accessible and healthy',
+                    'Review WordPress error logs in cPanel/hosting',
+                    'Verify server resources and PHP memory limits',
+                    'Check for plugin conflicts'
+                ];
+            }
+            
+            console.error('💡 WordFence Troubleshooting Suggestions:');
+            suggestions.forEach(suggestion => console.error(`   - ${suggestion}`));
+            
+            throw new Error(`${errorMessage}. Response: ${errorText}`);
         }
 
         const wpPost = await wpResponse.json();
