@@ -2029,7 +2029,7 @@ app.post('/api/test/sitemap', async (req, res) => {
             success: true,
             client: {
                 id: clientId,
-                name: client.name,
+                name: clientInfo.name,
                 sitemapUrl: sitemapUrl
             },
             parsing: {
