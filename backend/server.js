@@ -1673,6 +1673,27 @@ app.post('/api/generate/content', async (req, res) => {
             - Make it engaging and valuable for readers
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
+            
+            CRITICAL PARAGRAPH FORMATTING RULES:
+            - Follow the 2-4 sentence rule: Each paragraph should be 2-4 sentences maximum
+            - One idea per paragraph: Each paragraph focuses on a single, distinct point
+            - Use single-sentence paragraphs for emphasis, transitions, or questions
+            - Think mobile-first: Paragraphs that look good on desktop must work on smartphones
+            - Create white space: Short paragraphs improve readability and reduce eye strain
+            - Break up dense content: If a paragraph looks too long, split it up
+            - Use bulleted lists when appropriate instead of long paragraphs
+            
+            PARAGRAPH EXAMPLES:
+            ✅ GOOD (2-4 sentences, one idea):
+            "Good SEO helps potential customers find you through search engines. It involves optimizing your site's structure, content, and authority. By ranking higher for relevant keywords, you attract qualified traffic. This leads to more leads and sales for your business."
+            
+            ❌ BAD (wall of text):
+            "Good SEO is the practice of helping potential customers find you through search engines because it involves optimizing your site's structure, content, and overall authority so that you can rank higher for the keywords that people are searching for..."
+            
+            ✅ SINGLE-SENTENCE PARAGRAPH for emphasis:
+            "This is the key point that changes everything."
+            
+            Remember: Mobile users will see longer paragraphs as intimidating blocks of text.
             - INTERNAL LINKING RULES:
               * CRITICAL: Use ONLY the template placeholders provided: {{LINK_1}}, {{LINK_2}}, etc.
               * MAXIMUM ONE use per template - NEVER use the same template twice
@@ -2558,6 +2579,27 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             - Make it engaging and valuable for readers
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
+            
+            CRITICAL PARAGRAPH FORMATTING RULES:
+            - Follow the 2-4 sentence rule: Each paragraph should be 2-4 sentences maximum
+            - One idea per paragraph: Each paragraph focuses on a single, distinct point
+            - Use single-sentence paragraphs for emphasis, transitions, or questions
+            - Think mobile-first: Paragraphs that look good on desktop must work on smartphones
+            - Create white space: Short paragraphs improve readability and reduce eye strain
+            - Break up dense content: If a paragraph looks too long, split it up
+            - Use bulleted lists when appropriate instead of long paragraphs
+            
+            PARAGRAPH EXAMPLES:
+            ✅ GOOD (2-4 sentences, one idea):
+            "Good SEO helps potential customers find you through search engines. It involves optimizing your site's structure, content, and authority. By ranking higher for relevant keywords, you attract qualified traffic. This leads to more leads and sales for your business."
+            
+            ❌ BAD (wall of text):
+            "Good SEO is the practice of helping potential customers find you through search engines because it involves optimizing your site's structure, content, and overall authority so that you can rank higher for the keywords that people are searching for..."
+            
+            ✅ SINGLE-SENTENCE PARAGRAPH for emphasis:
+            "This is the key point that changes everything."
+            
+            Remember: Mobile users will see longer paragraphs as intimidating blocks of text.
             - INTERNAL LINKING RULES:
               * CRITICAL: Use ONLY the template placeholders provided: {{LINK_1}}, {{LINK_2}}, etc.
               * MAXIMUM ONE use per template - NEVER use the same template twice
@@ -2855,6 +2897,27 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             - Make it engaging and valuable for readers
             - Include a compelling introduction and strong conclusion
             - Aim for 1500-2500 words
+            
+            CRITICAL PARAGRAPH FORMATTING RULES:
+            - Follow the 2-4 sentence rule: Each paragraph should be 2-4 sentences maximum
+            - One idea per paragraph: Each paragraph focuses on a single, distinct point
+            - Use single-sentence paragraphs for emphasis, transitions, or questions
+            - Think mobile-first: Paragraphs that look good on desktop must work on smartphones
+            - Create white space: Short paragraphs improve readability and reduce eye strain
+            - Break up dense content: If a paragraph looks too long, split it up
+            - Use bulleted lists when appropriate instead of long paragraphs
+            
+            PARAGRAPH EXAMPLES:
+            ✅ GOOD (2-4 sentences, one idea):
+            "Good SEO helps potential customers find you through search engines. It involves optimizing your site's structure, content, and authority. By ranking higher for relevant keywords, you attract qualified traffic. This leads to more leads and sales for your business."
+            
+            ❌ BAD (wall of text):
+            "Good SEO is the practice of helping potential customers find you through search engines because it involves optimizing your site's structure, content, and overall authority so that you can rank higher for the keywords that people are searching for..."
+            
+            ✅ SINGLE-SENTENCE PARAGRAPH for emphasis:
+            "This is the key point that changes everything."
+            
+            Remember: Mobile users will see longer paragraphs as intimidating blocks of text.
             - INTERNAL LINKING RULES:
               * CRITICAL: Use ONLY the template placeholders provided: {{LINK_1}}, {{LINK_2}}, etc.
               * MAXIMUM ONE use per template - NEVER use the same template twice
