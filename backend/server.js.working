@@ -274,36 +274,6 @@ ${JSON.stringify(faqSchema, null, 2)}
     return faqHTML;
 }
 
-// Helper function to generate Open Graph meta tags for social sharing
-function generateOpenGraphTags(title, description, imageUrl, pageUrl, clientName) {
-    if (!imageUrl) {
-        return ''; // No Open Graph tags if no image
-    }
-    
-    const openGraphHTML = `
-<!-- Open Graph Meta Tags for Social Media Sharing -->
-<meta property="og:title" content="${title}" />
-<meta property="og:description" content="${description}" />
-<meta property="og:image" content="${imageUrl}" />
-<meta property="og:url" content="${pageUrl}" />
-<meta property="og:type" content="article" />
-<meta property="og:site_name" content="${clientName}" />
-<meta property="article:author" content="${clientName}" />
-
-<!-- Twitter Card Meta Tags -->
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="${title}" />
-<meta name="twitter:description" content="${description}" />
-<meta name="twitter:image" content="${imageUrl}" />
-
-<!-- Additional SEO Meta Tags -->
-<meta name="description" content="${description}" />
-<meta name="robots" content="index, follow" />
-`;
-    
-    return openGraphHTML;
-}
-
 // Helper function to generate image in parallel using DALL-E 3
 async function generateFeaturedImage(title, industry) {
     console.log(`🖼️ Starting parallel DALL-E 3 image generation for "${title}"`);
@@ -1998,40 +1968,10 @@ app.post('/api/publish/wordpress', async (req, res) => {
             }
         }
 
-        // Add Open Graph meta tags if featured image is available
-        let enhancedContent = content;
-        if (featuredImageId) {
-            try {
-                const mediaResponse = await fetch(`${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/media/${featuredImageId}`, {
-                    headers: {
-                        'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
-                    }
-                });
-                
-                if (mediaResponse.ok) {
-                    const mediaData = await mediaResponse.json();
-                    const imageUrl = mediaData.source_url;
-                    
-                    const openGraphTags = generateOpenGraphTags(
-                        title,
-                        metaDescription || `Professional ${client.industry} insights from ${client.name}`,
-                        imageUrl,
-                        `${client.wp.url}`,
-                        client.name
-                    );
-                    
-                    enhancedContent = openGraphTags + content;
-                    console.log(`🌐 Added Open Graph meta tags with featured image: ${imageUrl}`);
-                }
-            } catch (ogError) {
-                console.warn('⚠️ Failed to add Open Graph tags:', ogError.message);
-            }
-        }
-
         // Prepare post data
         const postData = {
             title: title,
-            content: enhancedContent,
+            content: content,
             excerpt: metaDescription || '',
             status: 'draft', // Always start as draft for review
             tags: tagIds // Use tag IDs
@@ -3237,36 +3177,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         const faqHTML = generateFAQHTML(contentData.faqs);
         
         // Combine main content with FAQ section
-        let fullContent = contentData.content + faqHTML;
-        
-        // Add Open Graph meta tags if featured image is available
-        if (featuredImageId) {
-            try {
-                const mediaResponse = await fetch(`${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/media/${featuredImageId}`, {
-                    headers: {
-                        'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
-                    }
-                });
-                
-                if (mediaResponse.ok) {
-                    const mediaData = await mediaResponse.json();
-                    const imageUrl = mediaData.source_url;
-                    
-                    const openGraphTags = generateOpenGraphTags(
-                        plan.title,
-                        contentData.metaDescription || `Professional ${client.industry} insights from ${client.name}`,
-                        imageUrl,
-                        `${client.wp.url}`,
-                        client.name
-                    );
-                    
-                    fullContent = openGraphTags + fullContent;
-                    console.log(`🌐 Added Open Graph meta tags with featured image: ${imageUrl}`);
-                }
-            } catch (ogError) {
-                console.warn('⚠️ Failed to add Open Graph tags:', ogError.message);
-            }
-        }
+        const fullContent = contentData.content + faqHTML;
         
         // Prepare post data for draft publication
         const postData = {

@@ -274,36 +274,6 @@ ${JSON.stringify(faqSchema, null, 2)}
     return faqHTML;
 }
 
-// Helper function to generate Open Graph meta tags for social sharing
-function generateOpenGraphTags(title, description, imageUrl, pageUrl, clientName) {
-    if (!imageUrl) {
-        return ''; // No Open Graph tags if no image
-    }
-    
-    const openGraphHTML = `
-<!-- Open Graph Meta Tags for Social Media Sharing -->
-<meta property="og:title" content="${title}" />
-<meta property="og:description" content="${description}" />
-<meta property="og:image" content="${imageUrl}" />
-<meta property="og:url" content="${pageUrl}" />
-<meta property="og:type" content="article" />
-<meta property="og:site_name" content="${clientName}" />
-<meta property="article:author" content="${clientName}" />
-
-<!-- Twitter Card Meta Tags -->
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="${title}" />
-<meta name="twitter:description" content="${description}" />
-<meta name="twitter:image" content="${imageUrl}" />
-
-<!-- Additional SEO Meta Tags -->
-<meta name="description" content="${description}" />
-<meta name="robots" content="index, follow" />
-`;
-    
-    return openGraphHTML;
-}
-
 // Helper function to generate image in parallel using DALL-E 3
 async function generateFeaturedImage(title, industry) {
     console.log(`🖼️ Starting parallel DALL-E 3 image generation for "${title}"`);
@@ -317,34 +287,19 @@ async function generateFeaturedImage(title, industry) {
     
     try {
         // Create a detailed, professional prompt for DALL-E 3
-        const imagePrompt = `Create a PHOTOREALISTIC featured image for a blog post titled "${title}" in the ${industry} industry. 
+        const imagePrompt = `Create a professional, modern featured image for a blog post titled "${title}" in the ${industry} industry. 
 
-CRITICAL REQUIREMENTS - PHOTOREALISTIC STYLE:
-- PHOTOREALISTIC photography style - no illustrations, cartoons, or artistic renderings
-- Real-world photography aesthetic with natural lighting and textures
-- High-definition, crisp detail that looks like a professional photograph
+CRITICAL REQUIREMENTS:
 - NO TEXT or very minimal text in the image
-- Authentic, believable scenes and objects
-- Professional camera quality with proper depth of field
-- Natural colors and realistic materials/surfaces
-
-VISUAL CONTENT:
-- Visually represent the title/topic through real objects, people, or environments
-- Use actual business settings, real equipment, or genuine scenarios
+- Visually represent the title/topic through imagery, symbols, and concepts
 - Professional quality suitable for a blog header
-- Clean composition with landscape orientation
+- Clean, modern design with landscape orientation
+- High quality and engaging
 - Appropriate for ${industry} industry content
-- Focus on realistic imagery that tells the story without words
+- Use visual metaphors and symbolic elements to convey the topic
+- Focus on imagery that tells the story without words
 
-PHOTOGRAPHY STYLE:
-- Shot with professional camera equipment
-- Natural or professional studio lighting
-- Sharp focus with realistic depth of field
-- Authentic textures and materials
-- Real-world environments and settings
-- High-resolution photographic quality
-
-The image should look like a genuine photograph taken by a professional photographer, communicating the essence of "${title}" through photorealistic visual elements.`;
+The image should communicate the essence of "${title}" through pure visual elements, professional photography style, and symbolic representation rather than text overlay.`;
 
         // Generate image using OpenAI DALL-E 3 (standard size)
         const response = await openai.images.generate({
@@ -352,7 +307,7 @@ The image should look like a genuine photograph taken by a professional photogra
             prompt: imagePrompt,
             n: 1,
             size: "1024x1024", // Standard size, will be resized to landscape
-            quality: "hd", // HD quality for enhanced photorealism
+            quality: "standard", // Standard quality for faster generation
             response_format: "b64_json"
         });
         
@@ -737,34 +692,8 @@ function replaceUrlTemplatesWithReal(content, validLinks) {
     return processedContent;
 }
 
-// ENHANCED: Real-time URL validation to prevent 404 errors
-async function validateUrlExists(url) {
-    try {
-        console.log(`🔍 Validating URL: ${url}`);
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
-        
-        const response = await fetch(url, { 
-            method: 'HEAD',
-            signal: controller.signal,
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (compatible; BlogMonkee/1.0; +http://blogmonkee.com/bot)'
-            }
-        });
-        
-        clearTimeout(timeoutId);
-        const isValid = response.ok && response.status < 400;
-        console.log(`${isValid ? '✅' : '❌'} URL validation: ${url} → ${response.status}`);
-        return isValid;
-        
-    } catch (error) {
-        console.log(`❌ URL validation failed: ${url} → ${error.message}`);
-        return false;
-    }
-}
-
-// MANDATORY: Validate external links with real-time URL checking
-async function validateExternalLinks(content) {
+// Helper function to validate external links
+function validateExternalLinks(content) {
     console.log('🔗 Validating external links in content...');
     
     // Extract external links with target="_blank"
@@ -776,58 +705,33 @@ async function validateExternalLinks(content) {
         const url = match[1];
         const anchorText = match[2];
         
-        // Only process external links (with http/https)
-        if (url.includes('http://') || url.includes('https://')) {
-            externalLinks.push({ url, anchorText });
+        // Basic validation for external URLs
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+            externalLinks.push({
+                url: url,
+                anchorText: anchorText,
+                isValid: true
+            });
         } else {
-            console.log(`⚠️ Invalid external link found: ${url}`);
+            console.warn(`⚠️ Invalid external link found: ${url}`);
         }
     }
     
     console.log(`📊 Found ${externalLinks.length} external links`);
     
-    // MANDATORY: Require minimum 2 external links
     if (externalLinks.length < 2) {
-        console.error(`❌ MANDATORY EXTERNAL LINKS MISSING: Only ${externalLinks.length} external links found - MINIMUM 2 required`);
-        throw new Error(`Content validation failed: Must include at least 2 external links, found only ${externalLinks.length}`);
+        console.warn(`⚠️ Only ${externalLinks.length} external links found - should be 2-8`);
     } else if (externalLinks.length > 8) {
         console.warn(`⚠️ ${externalLinks.length} external links found - maximum should be 8`);
     } else {
         console.log(`✅ External link count is optimal: ${externalLinks.length} links`);
     }
     
-    // Real-time URL validation for all external links
-    console.log('🌐 Starting real-time URL validation...');
-    const validationResults = [];
-    
-    for (const link of externalLinks) {
-        const isValid = await validateUrlExists(link.url);
-        validationResults.push({
-            url: link.url,
-            anchorText: link.anchorText,
-            isValid: isValid
-        });
-        
-        if (!isValid) {
-            console.error(`❌ BROKEN LINK DETECTED: "${link.anchorText}" → ${link.url}`);
-        }
-    }
-    
-    // Check if any links are broken
-    const brokenLinks = validationResults.filter(result => !result.isValid);
-    if (brokenLinks.length > 0) {
-        console.error(`❌ CONTENT VALIDATION FAILED: ${brokenLinks.length} broken external links detected`);
-        brokenLinks.forEach(link => {
-            console.error(`   💔 Broken: "${link.anchorText}" → ${link.url}`);
-        });
-        throw new Error(`Content validation failed: ${brokenLinks.length} external links are broken or inaccessible`);
-    }
-    
     // Analyze link quality and legitimacy
     let wikipediaCount = 0;
     
-    validationResults.forEach((result, index) => {
-        const url = result.url.toLowerCase();
+    externalLinks.forEach((link, index) => {
+        const url = link.url.toLowerCase();
         let linkQuality = 'unknown';
         
         if (url.includes('wikipedia.org')) {
@@ -845,8 +749,7 @@ async function validateExternalLinks(content) {
             linkQuality = 'Other source (verify legitimacy)';
         }
         
-        const validationStatus = result.isValid ? '[WORKING ✅]' : '[BROKEN ❌]';
-        console.log(`🔗 External Link ${index + 1}: "${result.anchorText}" → ${result.url} [${linkQuality}] ${validationStatus}`);
+        console.log(`🔗 External Link ${index + 1}: "${link.anchorText}" → ${link.url} [${linkQuality}]`);
     });
     
     // Warn about Wikipedia overuse
@@ -857,7 +760,6 @@ async function validateExternalLinks(content) {
         console.warn(`⚠️ Wikipedia used but better industry sources may be available`);
     }
     
-    console.log(`✅ All ${externalLinks.length} external links validated and working`);
     return externalLinks;
 }
 
@@ -1844,7 +1746,7 @@ app.post('/api/generate/content', async (req, res) => {
         validateInternalLinks(contentData.content, internalLinks);
         
         // Validate external links in generated content
-        await validateExternalLinks(contentData.content);
+        validateExternalLinks(contentData.content);
         
         res.json(contentData);
 
@@ -1998,40 +1900,10 @@ app.post('/api/publish/wordpress', async (req, res) => {
             }
         }
 
-        // Add Open Graph meta tags if featured image is available
-        let enhancedContent = content;
-        if (featuredImageId) {
-            try {
-                const mediaResponse = await fetch(`${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/media/${featuredImageId}`, {
-                    headers: {
-                        'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
-                    }
-                });
-                
-                if (mediaResponse.ok) {
-                    const mediaData = await mediaResponse.json();
-                    const imageUrl = mediaData.source_url;
-                    
-                    const openGraphTags = generateOpenGraphTags(
-                        title,
-                        metaDescription || `Professional ${client.industry} insights from ${client.name}`,
-                        imageUrl,
-                        `${client.wp.url}`,
-                        client.name
-                    );
-                    
-                    enhancedContent = openGraphTags + content;
-                    console.log(`🌐 Added Open Graph meta tags with featured image: ${imageUrl}`);
-                }
-            } catch (ogError) {
-                console.warn('⚠️ Failed to add Open Graph tags:', ogError.message);
-            }
-        }
-
         // Prepare post data
         const postData = {
             title: title,
-            content: enhancedContent,
+            content: content,
             excerpt: metaDescription || '',
             status: 'draft', // Always start as draft for review
             tags: tagIds // Use tag IDs
@@ -2741,26 +2613,36 @@ app.post('/api/generate/complete-blog', async (req, res) => {
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
-            🚨 MANDATORY EXTERNAL LINKS - CRITICAL REQUIREMENT:
-            - YOU MUST INCLUDE EXACTLY 2-8 WORKING EXTERNAL LINKS - NO EXCEPTIONS
-            - Content will be REJECTED if it has fewer than 2 external links
-            - All links will be tested in real-time - broken links cause rejection
+            EXTERNAL LINKS REQUIREMENTS - CRITICAL 404 PREVENTION:
+            - Include 2-8 relevant external links to VERIFIED, WORKING websites only
+            - 🚫 NEVER CREATE OR GUESS URLs - Only use the verified links provided below
+            - 🚫 NEVER add paths, subdirectories, or specific pages unless explicitly listed
             - ✅ ONLY USE THESE VERIFIED WORKING URLS (choose 2-8 that are relevant):
               ${getVerifiedExternalLinks(client.industry).map(url => `* ${url}`).join('\n              ')}
             
-            MANDATORY LINKING RULES:
+            LINKING RULES:
             - Use EXACT URLs from the list above - DO NOT modify or add paths
+            - If you need a specific page, only use URLs that include the full path (like the iii.org example)
+            - For general references, use root domains only (like https://www.naic.org)
+            - Links must be contextually integrated into the content naturally
+            - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
             - Format: <a href="EXACT_URL_FROM_LIST" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
-            - Distribute 2-8 links naturally throughout the article
-            - Each link must provide genuine value and context
             
-            ❌ CONTENT WILL BE REJECTED IF:
-            - Fewer than 2 external links included
-            - Any external links return 404 errors or are inaccessible
-            - URLs not from the verified list above
-            - Links missing target="_blank" rel="noopener noreferrer"
+            EXAMPLES OF CORRECT USAGE:
+            - "The <a href=\"https://www.naic.org\" target=\"_blank\" rel=\"noopener noreferrer\">National Association of Insurance Commissioners</a> provides industry oversight..."
+            - "According to <a href=\"https://www.iii.org\" target=\"_blank\" rel=\"noopener noreferrer\">Insurance Information Institute</a> research..."
+            - "Recent <a href=\"https://www.reuters.com\" target=\"_blank\" rel=\"noopener noreferrer\">Reuters</a> reporting shows..."
             
-            This is a MANDATORY requirement - not optional.
+            ❌ NEVER DO THIS:
+            - https://www.naic.org/consumer-guides/auto-insurance (path doesn't exist)
+            - https://www.iii.org/statistics/liability-coverage (made up path)  
+            - Any URL not in the verified list above
+            
+            PRIORITY ORDER:
+            1. Industry-specific verified URLs (top of list)
+            2. Government sources (.gov domains from list)
+            3. General news sources (bottom of list)
+            4. Wikipedia ONLY as absolute last resort for basic definitions
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
@@ -2835,7 +2717,7 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         validateInternalLinks(contentData.content, internalLinks);
         
         // Validate external links in complete blog content
-        await validateExternalLinks(contentData.content);
+        validateExternalLinks(contentData.content);
 
         // Generate FAQ HTML with schema markup
         const faqHTML = generateFAQHTML(contentData.faqs);
@@ -3049,26 +2931,36 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
-            🚨 MANDATORY EXTERNAL LINKS - CRITICAL REQUIREMENT:
-            - YOU MUST INCLUDE EXACTLY 2-8 WORKING EXTERNAL LINKS - NO EXCEPTIONS
-            - Content will be REJECTED if it has fewer than 2 external links
-            - All links will be tested in real-time - broken links cause rejection
+            EXTERNAL LINKS REQUIREMENTS - CRITICAL 404 PREVENTION:
+            - Include 2-8 relevant external links to VERIFIED, WORKING websites only
+            - 🚫 NEVER CREATE OR GUESS URLs - Only use the verified links provided below
+            - 🚫 NEVER add paths, subdirectories, or specific pages unless explicitly listed
             - ✅ ONLY USE THESE VERIFIED WORKING URLS (choose 2-8 that are relevant):
               ${getVerifiedExternalLinks(client.industry).map(url => `* ${url}`).join('\n              ')}
             
-            MANDATORY LINKING RULES:
+            LINKING RULES:
             - Use EXACT URLs from the list above - DO NOT modify or add paths
+            - If you need a specific page, only use URLs that include the full path (like the iii.org example)
+            - For general references, use root domains only (like https://www.naic.org)
+            - Links must be contextually integrated into the content naturally
+            - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
             - Format: <a href="EXACT_URL_FROM_LIST" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
-            - Distribute 2-8 links naturally throughout the article
-            - Each link must provide genuine value and context
             
-            ❌ CONTENT WILL BE REJECTED IF:
-            - Fewer than 2 external links included
-            - Any external links return 404 errors or are inaccessible
-            - URLs not from the verified list above
-            - Links missing target="_blank" rel="noopener noreferrer"
+            EXAMPLES OF CORRECT USAGE:
+            - "The <a href=\"https://www.naic.org\" target=\"_blank\" rel=\"noopener noreferrer\">National Association of Insurance Commissioners</a> provides industry oversight..."
+            - "According to <a href=\"https://www.iii.org\" target=\"_blank\" rel=\"noopener noreferrer\">Insurance Information Institute</a> research..."
+            - "Recent <a href=\"https://www.reuters.com\" target=\"_blank\" rel=\"noopener noreferrer\">Reuters</a> reporting shows..."
             
-            This is a MANDATORY requirement - not optional.
+            ❌ NEVER DO THIS:
+            - https://www.naic.org/consumer-guides/auto-insurance (path doesn't exist)
+            - https://www.iii.org/statistics/liability-coverage (made up path)  
+            - Any URL not in the verified list above
+            
+            PRIORITY ORDER:
+            1. Industry-specific verified URLs (top of list)
+            2. Government sources (.gov domains from list)
+            3. General news sources (bottom of list)
+            4. Wikipedia ONLY as absolute last resort for basic definitions
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
@@ -3144,7 +3036,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         validateInternalLinks(contentData.content, internalLinks);
         
         // Validate external links in lucky blog content
-        await validateExternalLinks(contentData.content);
+        validateExternalLinks(contentData.content);
 
         // Step 5: Wait for Parallel Image Generation and Upload
         console.log(`🖼️ Step 5: Waiting for parallel image generation to complete...`);
@@ -3237,36 +3129,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         const faqHTML = generateFAQHTML(contentData.faqs);
         
         // Combine main content with FAQ section
-        let fullContent = contentData.content + faqHTML;
-        
-        // Add Open Graph meta tags if featured image is available
-        if (featuredImageId) {
-            try {
-                const mediaResponse = await fetch(`${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/media/${featuredImageId}`, {
-                    headers: {
-                        'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
-                    }
-                });
-                
-                if (mediaResponse.ok) {
-                    const mediaData = await mediaResponse.json();
-                    const imageUrl = mediaData.source_url;
-                    
-                    const openGraphTags = generateOpenGraphTags(
-                        plan.title,
-                        contentData.metaDescription || `Professional ${client.industry} insights from ${client.name}`,
-                        imageUrl,
-                        `${client.wp.url}`,
-                        client.name
-                    );
-                    
-                    fullContent = openGraphTags + fullContent;
-                    console.log(`🌐 Added Open Graph meta tags with featured image: ${imageUrl}`);
-                }
-            } catch (ogError) {
-                console.warn('⚠️ Failed to add Open Graph tags:', ogError.message);
-            }
-        }
+        const fullContent = contentData.content + faqHTML;
         
         // Prepare post data for draft publication
         const postData = {
