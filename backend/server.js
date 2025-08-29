@@ -704,9 +704,68 @@ function validateExternalLinks(content) {
 
 // --- Web Crawling and Sitemap Functions ---
 
+// CRITICAL: Client validation to prevent data bleedthrough
+async function validateClientOwnership(clientId, operation) {
+    try {
+        const client = await pool.query('SELECT name, "websiteUrl" FROM clients WHERE id = $1', [clientId]);
+        if (client.rows.length === 0) {
+            throw new Error(`Invalid client ID: ${clientId}`);
+        }
+        console.log(`✅ ${operation} validated for client: ${client.rows[0].name} (${clientId})`);
+        return client.rows[0];
+    } catch (error) {
+        console.error(`❌ Client validation failed for ${operation}:`, error.message);
+        throw error;
+    }
+}
+
+// CRITICAL: Domain validation to prevent cross-client URL contamination
+async function validateUrlDomain(clientId, url, clientInfo = null) {
+    try {
+        if (!clientInfo) {
+            const result = await pool.query('SELECT "websiteUrl", name FROM clients WHERE id = $1', [clientId]);
+            if (result.rows.length === 0) {
+                console.error(`❌ Client not found for domain validation: ${clientId}`);
+                return false;
+            }
+            clientInfo = result.rows[0];
+        }
+        
+        if (!clientInfo.websiteUrl) {
+            console.warn(`⚠️ No website URL configured for client ${clientInfo.name}, skipping domain validation`);
+            return true; // Allow if no domain configured
+        }
+        
+        const clientDomain = new URL(clientInfo.websiteUrl).hostname.toLowerCase();
+        const urlDomain = new URL(url).hostname.toLowerCase();
+        
+        if (clientDomain !== urlDomain) {
+            console.error(`🚨 DOMAIN MISMATCH BLOCKED: Client "${clientInfo.name}" (${clientDomain}) attempted to store URL from ${urlDomain}: ${url}`);
+            return false;
+        }
+        
+        console.log(`✅ Domain validation passed: ${urlDomain} matches client ${clientInfo.name}`);
+        return true;
+        
+    } catch (error) {
+        console.error(`❌ Domain validation error:`, error.message);
+        return false; // Fail safe - reject on error
+    }
+}
+
 // Helper function to add new blog URL to sitemap database (for auto-update)
 async function addBlogToSitemapDatabase(clientId, blogUrl, title, description = 'Generated blog post') {
     try {
+        // CRITICAL: Validate client ownership first
+        const clientInfo = await validateClientOwnership(clientId, 'Blog Auto-Update');
+        
+        // CRITICAL: Validate domain to prevent cross-client contamination
+        const domainValid = await validateUrlDomain(clientId, blogUrl, clientInfo);
+        if (!domainValid) {
+            console.error(`🚨 BLOCKED: Attempted to add URL from wrong domain to client ${clientInfo.name}: ${blogUrl}`);
+            return false;
+        }
+        
         // Convert full URL to relative path for consistency
         let relativePath;
         if (blogUrl.startsWith('http')) {
@@ -721,13 +780,13 @@ async function addBlogToSitemapDatabase(clientId, blogUrl, title, description = 
             relativePath = relativePath.replace(/\/$/, '');
         }
         
-        // Add to sitemap database
+        // Add to sitemap database with validated client ID
         await pool.query(
             'INSERT INTO sitemap_urls (client_id, url, title, description, category, last_modified) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT (client_id, url) DO UPDATE SET title = $3, description = $4, category = $5, last_modified = NOW()',
             [clientId, relativePath, title, description, 'blog']
         );
         
-        console.log(`✅ Auto-update: Added "${title}" to sitemap database at ${relativePath}`);
+        console.log(`✅ Auto-update: Added "${title}" to sitemap database at ${relativePath} for client ${clientInfo.name}`);
         return true;
         
     } catch (error) {
@@ -841,7 +900,15 @@ async function parseXMLSitemapForClient(clientId, sitemapUrl) {
                         .replace(/\b\w/g, l => l.toUpperCase());
                 }
                 
-                // Store in database
+                // CRITICAL: Validate domain before storing
+                const domainValid = await validateUrlDomain(clientId, fullUrl);
+                if (!domainValid) {
+                    console.warn(`🚨 BLOCKED: Skipping cross-domain URL in sitemap: ${fullUrl}`);
+                    skipped++;
+                    continue;
+                }
+                
+                // Store in database with domain validation passed
                 await pool.query(`
                     INSERT INTO sitemap_urls (client_id, url, title, last_modified, "createdAt")
                     VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)
@@ -1921,7 +1988,7 @@ app.post('/api/admin/cleanup-urls', async (req, res) => {
     }
 });
 
-// NEW: XML Sitemap Parsing Test
+// NEW: XML Sitemap Parsing Test with validation
 app.post('/api/test/sitemap', async (req, res) => {
     const { clientId, sitemapUrl } = req.body;
     
@@ -1934,16 +2001,20 @@ app.post('/api/test/sitemap', async (req, res) => {
     }
     
     try {
-        // Get client info
-        const result = await pool.query('SELECT name FROM clients WHERE id = $1', [clientId]);
+        // CRITICAL: Validate client ownership first
+        const clientInfo = await validateClientOwnership(clientId, 'Sitemap Test');
         
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'Client not found' });
+        console.log(`🗺️ Testing XML sitemap parsing for client ${clientInfo.name}: ${sitemapUrl}`);
+        
+        // CRITICAL: Validate sitemap domain matches client domain
+        const domainValid = await validateUrlDomain(clientId, sitemapUrl, clientInfo);
+        if (!domainValid) {
+            return res.status(400).json({ 
+                error: 'Domain mismatch: Sitemap URL domain does not match client website domain',
+                details: `Client "${clientInfo.name}" cannot use sitemap from a different domain`,
+                suggestion: 'Please provide a sitemap URL from the same domain as the client website'
+            });
         }
-        
-        const client = result.rows[0];
-        
-        console.log(`🗺️ Testing XML sitemap parsing for client ${client.name}: ${sitemapUrl}`);
         
         // Test the new XML sitemap parsing function
         const parseResult = await parseXMLSitemapForClient(clientId, sitemapUrl);
@@ -2000,6 +2071,77 @@ app.post('/api/test/sitemap', async (req, res) => {
             error: 'Failed to test XML sitemap parsing', 
             details: error.message,
             suggestion: 'Check if the sitemap URL is accessible and contains valid XML'
+        });
+    }
+});
+
+// CRITICAL: Database cleanup endpoint to remove cross-contaminated URLs
+app.post('/api/admin/cleanup-cross-contamination', async (req, res) => {
+    try {
+        console.log('🧹 Starting cross-contamination cleanup...');
+        
+        // Get all clients with their domains
+        const clients = await pool.query('SELECT id, name, "websiteUrl" FROM clients WHERE "websiteUrl" IS NOT NULL');
+        
+        let totalCleaned = 0;
+        let cleanupResults = [];
+        
+        for (const client of clients.rows) {
+            try {
+                const clientDomain = new URL(client.websiteUrl).hostname.toLowerCase();
+                
+                // Find URLs that don't match this client's domain
+                const crossUrls = await pool.query(`
+                    SELECT id, url, title 
+                    FROM sitemap_urls 
+                    WHERE client_id = $1 
+                    AND url LIKE 'http%' 
+                    AND url NOT LIKE $2
+                `, [client.id, `%${clientDomain}%`]);
+                
+                if (crossUrls.rows.length > 0) {
+                    // Delete cross-contaminated URLs
+                    const deleteResult = await pool.query(`
+                        DELETE FROM sitemap_urls 
+                        WHERE client_id = $1 
+                        AND url LIKE 'http%' 
+                        AND url NOT LIKE $2
+                    `, [client.id, `%${clientDomain}%`]);
+                    
+                    const cleanedCount = deleteResult.rowCount;
+                    totalCleaned += cleanedCount;
+                    
+                    cleanupResults.push({
+                        client: client.name,
+                        domain: clientDomain,
+                        cleaned: cleanedCount,
+                        examples: crossUrls.rows.slice(0, 3).map(row => row.url)
+                    });
+                    
+                    console.log(`🧹 Cleaned ${cleanedCount} cross-contaminated URLs for ${client.name}`);
+                }
+                
+            } catch (clientError) {
+                console.error(`Error processing client ${client.name}:`, clientError.message);
+                cleanupResults.push({
+                    client: client.name,
+                    error: clientError.message
+                });
+            }
+        }
+        
+        res.json({
+            success: true,
+            message: `Cross-contamination cleanup complete: ${totalCleaned} URLs removed`,
+            totalCleaned: totalCleaned,
+            results: cleanupResults
+        });
+        
+    } catch (error) {
+        console.error('Error during cross-contamination cleanup:', error);
+        res.status(500).json({ 
+            error: 'Failed to cleanup cross-contamination', 
+            details: error.message 
         });
     }
 });
