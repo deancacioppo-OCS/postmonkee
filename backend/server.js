@@ -692,8 +692,34 @@ function replaceUrlTemplatesWithReal(content, validLinks) {
     return processedContent;
 }
 
-// Helper function to validate external links
-function validateExternalLinks(content) {
+// ENHANCED: Real-time URL validation to prevent 404 errors
+async function validateUrlExists(url) {
+    try {
+        console.log(`🔍 Validating URL: ${url}`);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        
+        const response = await fetch(url, { 
+            method: 'HEAD',
+            signal: controller.signal,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; BlogMonkee/1.0; +http://blogmonkee.com/bot)'
+            }
+        });
+        
+        clearTimeout(timeoutId);
+        const isValid = response.ok && response.status < 400;
+        console.log(`${isValid ? '✅' : '❌'} URL validation: ${url} → ${response.status}`);
+        return isValid;
+        
+    } catch (error) {
+        console.log(`❌ URL validation failed: ${url} → ${error.message}`);
+        return false;
+    }
+}
+
+// MANDATORY: Validate external links with real-time URL checking
+async function validateExternalLinks(content) {
     console.log('🔗 Validating external links in content...');
     
     // Extract external links with target="_blank"
@@ -705,33 +731,58 @@ function validateExternalLinks(content) {
         const url = match[1];
         const anchorText = match[2];
         
-        // Basic validation for external URLs
-        if (url.startsWith('http://') || url.startsWith('https://')) {
-            externalLinks.push({
-                url: url,
-                anchorText: anchorText,
-                isValid: true
-            });
+        // Only process external links (with http/https)
+        if (url.includes('http://') || url.includes('https://')) {
+            externalLinks.push({ url, anchorText });
         } else {
-            console.warn(`⚠️ Invalid external link found: ${url}`);
+            console.log(`⚠️ Invalid external link found: ${url}`);
         }
     }
     
     console.log(`📊 Found ${externalLinks.length} external links`);
     
+    // MANDATORY: Require minimum 2 external links
     if (externalLinks.length < 2) {
-        console.warn(`⚠️ Only ${externalLinks.length} external links found - should be 2-8`);
+        console.error(`❌ MANDATORY EXTERNAL LINKS MISSING: Only ${externalLinks.length} external links found - MINIMUM 2 required`);
+        throw new Error(`Content validation failed: Must include at least 2 external links, found only ${externalLinks.length}`);
     } else if (externalLinks.length > 8) {
         console.warn(`⚠️ ${externalLinks.length} external links found - maximum should be 8`);
     } else {
         console.log(`✅ External link count is optimal: ${externalLinks.length} links`);
     }
     
+    // Real-time URL validation for all external links
+    console.log('🌐 Starting real-time URL validation...');
+    const validationResults = [];
+    
+    for (const link of externalLinks) {
+        const isValid = await validateUrlExists(link.url);
+        validationResults.push({
+            url: link.url,
+            anchorText: link.anchorText,
+            isValid: isValid
+        });
+        
+        if (!isValid) {
+            console.error(`❌ BROKEN LINK DETECTED: "${link.anchorText}" → ${link.url}`);
+        }
+    }
+    
+    // Check if any links are broken
+    const brokenLinks = validationResults.filter(result => !result.isValid);
+    if (brokenLinks.length > 0) {
+        console.error(`❌ CONTENT VALIDATION FAILED: ${brokenLinks.length} broken external links detected`);
+        brokenLinks.forEach(link => {
+            console.error(`   💔 Broken: "${link.anchorText}" → ${link.url}`);
+        });
+        throw new Error(`Content validation failed: ${brokenLinks.length} external links are broken or inaccessible`);
+    }
+    
     // Analyze link quality and legitimacy
     let wikipediaCount = 0;
     
-    externalLinks.forEach((link, index) => {
-        const url = link.url.toLowerCase();
+    validationResults.forEach((result, index) => {
+        const url = result.url.toLowerCase();
         let linkQuality = 'unknown';
         
         if (url.includes('wikipedia.org')) {
@@ -749,7 +800,8 @@ function validateExternalLinks(content) {
             linkQuality = 'Other source (verify legitimacy)';
         }
         
-        console.log(`🔗 External Link ${index + 1}: "${link.anchorText}" → ${link.url} [${linkQuality}]`);
+        const validationStatus = result.isValid ? '[WORKING ✅]' : '[BROKEN ❌]';
+        console.log(`🔗 External Link ${index + 1}: "${result.anchorText}" → ${result.url} [${linkQuality}] ${validationStatus}`);
     });
     
     // Warn about Wikipedia overuse
@@ -760,6 +812,7 @@ function validateExternalLinks(content) {
         console.warn(`⚠️ Wikipedia used but better industry sources may be available`);
     }
     
+    console.log(`✅ All ${externalLinks.length} external links validated and working`);
     return externalLinks;
 }
 
@@ -1746,7 +1799,7 @@ app.post('/api/generate/content', async (req, res) => {
         validateInternalLinks(contentData.content, internalLinks);
         
         // Validate external links in generated content
-        validateExternalLinks(contentData.content);
+        await validateExternalLinks(contentData.content);
         
         res.json(contentData);
 
@@ -2613,36 +2666,26 @@ app.post('/api/generate/complete-blog', async (req, res) => {
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
-            EXTERNAL LINKS REQUIREMENTS - CRITICAL 404 PREVENTION:
-            - Include 2-8 relevant external links to VERIFIED, WORKING websites only
-            - 🚫 NEVER CREATE OR GUESS URLs - Only use the verified links provided below
-            - 🚫 NEVER add paths, subdirectories, or specific pages unless explicitly listed
+            🚨 MANDATORY EXTERNAL LINKS - CRITICAL REQUIREMENT:
+            - YOU MUST INCLUDE EXACTLY 2-8 WORKING EXTERNAL LINKS - NO EXCEPTIONS
+            - Content will be REJECTED if it has fewer than 2 external links
+            - All links will be tested in real-time - broken links cause rejection
             - ✅ ONLY USE THESE VERIFIED WORKING URLS (choose 2-8 that are relevant):
               ${getVerifiedExternalLinks(client.industry).map(url => `* ${url}`).join('\n              ')}
             
-            LINKING RULES:
+            MANDATORY LINKING RULES:
             - Use EXACT URLs from the list above - DO NOT modify or add paths
-            - If you need a specific page, only use URLs that include the full path (like the iii.org example)
-            - For general references, use root domains only (like https://www.naic.org)
-            - Links must be contextually integrated into the content naturally
-            - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
             - Format: <a href="EXACT_URL_FROM_LIST" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
+            - Distribute 2-8 links naturally throughout the article
+            - Each link must provide genuine value and context
             
-            EXAMPLES OF CORRECT USAGE:
-            - "The <a href=\"https://www.naic.org\" target=\"_blank\" rel=\"noopener noreferrer\">National Association of Insurance Commissioners</a> provides industry oversight..."
-            - "According to <a href=\"https://www.iii.org\" target=\"_blank\" rel=\"noopener noreferrer\">Insurance Information Institute</a> research..."
-            - "Recent <a href=\"https://www.reuters.com\" target=\"_blank\" rel=\"noopener noreferrer\">Reuters</a> reporting shows..."
+            ❌ CONTENT WILL BE REJECTED IF:
+            - Fewer than 2 external links included
+            - Any external links return 404 errors or are inaccessible
+            - URLs not from the verified list above
+            - Links missing target="_blank" rel="noopener noreferrer"
             
-            ❌ NEVER DO THIS:
-            - https://www.naic.org/consumer-guides/auto-insurance (path doesn't exist)
-            - https://www.iii.org/statistics/liability-coverage (made up path)  
-            - Any URL not in the verified list above
-            
-            PRIORITY ORDER:
-            1. Industry-specific verified URLs (top of list)
-            2. Government sources (.gov domains from list)
-            3. General news sources (bottom of list)
-            4. Wikipedia ONLY as absolute last resort for basic definitions
+            This is a MANDATORY requirement - not optional.
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
@@ -2717,7 +2760,7 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         validateInternalLinks(contentData.content, internalLinks);
         
         // Validate external links in complete blog content
-        validateExternalLinks(contentData.content);
+        await validateExternalLinks(contentData.content);
 
         // Generate FAQ HTML with schema markup
         const faqHTML = generateFAQHTML(contentData.faqs);
@@ -2931,36 +2974,26 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
-            EXTERNAL LINKS REQUIREMENTS - CRITICAL 404 PREVENTION:
-            - Include 2-8 relevant external links to VERIFIED, WORKING websites only
-            - 🚫 NEVER CREATE OR GUESS URLs - Only use the verified links provided below
-            - 🚫 NEVER add paths, subdirectories, or specific pages unless explicitly listed
+            🚨 MANDATORY EXTERNAL LINKS - CRITICAL REQUIREMENT:
+            - YOU MUST INCLUDE EXACTLY 2-8 WORKING EXTERNAL LINKS - NO EXCEPTIONS
+            - Content will be REJECTED if it has fewer than 2 external links
+            - All links will be tested in real-time - broken links cause rejection
             - ✅ ONLY USE THESE VERIFIED WORKING URLS (choose 2-8 that are relevant):
               ${getVerifiedExternalLinks(client.industry).map(url => `* ${url}`).join('\n              ')}
             
-            LINKING RULES:
+            MANDATORY LINKING RULES:
             - Use EXACT URLs from the list above - DO NOT modify or add paths
-            - If you need a specific page, only use URLs that include the full path (like the iii.org example)
-            - For general references, use root domains only (like https://www.naic.org)
-            - Links must be contextually integrated into the content naturally
-            - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
             - Format: <a href="EXACT_URL_FROM_LIST" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
+            - Distribute 2-8 links naturally throughout the article
+            - Each link must provide genuine value and context
             
-            EXAMPLES OF CORRECT USAGE:
-            - "The <a href=\"https://www.naic.org\" target=\"_blank\" rel=\"noopener noreferrer\">National Association of Insurance Commissioners</a> provides industry oversight..."
-            - "According to <a href=\"https://www.iii.org\" target=\"_blank\" rel=\"noopener noreferrer\">Insurance Information Institute</a> research..."
-            - "Recent <a href=\"https://www.reuters.com\" target=\"_blank\" rel=\"noopener noreferrer\">Reuters</a> reporting shows..."
+            ❌ CONTENT WILL BE REJECTED IF:
+            - Fewer than 2 external links included
+            - Any external links return 404 errors or are inaccessible
+            - URLs not from the verified list above
+            - Links missing target="_blank" rel="noopener noreferrer"
             
-            ❌ NEVER DO THIS:
-            - https://www.naic.org/consumer-guides/auto-insurance (path doesn't exist)
-            - https://www.iii.org/statistics/liability-coverage (made up path)  
-            - Any URL not in the verified list above
-            
-            PRIORITY ORDER:
-            1. Industry-specific verified URLs (top of list)
-            2. Government sources (.gov domains from list)
-            3. General news sources (bottom of list)
-            4. Wikipedia ONLY as absolute last resort for basic definitions
+            This is a MANDATORY requirement - not optional.
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
@@ -3036,7 +3069,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         validateInternalLinks(contentData.content, internalLinks);
         
         // Validate external links in lucky blog content
-        validateExternalLinks(contentData.content);
+        await validateExternalLinks(contentData.content);
 
         // Step 5: Wait for Parallel Image Generation and Upload
         console.log(`🖼️ Step 5: Waiting for parallel image generation to complete...`);
