@@ -2829,25 +2829,31 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             - ✅ USE THESE TOPIC-SPECIFIC VALIDATED URLS (choose 2-8 most relevant):
               ${topicalExternalLinks.map(url => `* ${url} ← TOPIC-SPECIFIC & VALIDATED`).join('\n              ')}
             
-            STRICT COPYING RULES:
-            - COPY the exact URL from the list above - character for character
-            - DO NOT add /pages, /articles, or any additional paths
-            - DO NOT modify the URLs in any way
-            - Format: <a href="EXACT_COPIED_URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
+            INTELLIGENT LINKING ADVANTAGES:
+            - URLs are specifically about "${plan.title}" (not generic industry links)
+            - Real-time Google Search results for maximum relevance  
+            - All links validated and working (no 404s or paywalls)
+            - Authority-scored (.gov and .edu sources prioritized)
+            - Automatic cleanup prevents link duplication
             
-            EXAMPLES OF CORRECT COPYING:
-            - Copy: https://www.osha.gov (✅ CORRECT)
-            - Do NOT create: https://www.osha.gov/construction-safety (❌ WRONG - will fail validation)
-            - Copy: https://www.nrca.net (✅ CORRECT)
-            - Do NOT create: https://www.nrca.net/roofing-guidelines (❌ WRONG - will fail validation)
+            MANDATORY REQUIREMENTS:
+            - YOU MUST INCLUDE AT LEAST 3-6 EXTERNAL LINKS FROM THE LIST ABOVE
+            - Use exact URLs from the topical list - DO NOT modify
+            - Format: <a href="EXACT_TOPICAL_URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
+            - Distribute links naturally throughout the article
+            - Each link must provide genuine topical value
             
-            ❌ YOUR CONTENT WILL BE COMPLETELY REJECTED IF:
-            - You use reuters.com, wsj.com, or any URL not in the verified list
-            - You create or modify any URLs instead of copying exactly
-            - You have fewer than 2 external links
-            - Any links return 404 or 401 errors during real-time validation
+            EXAMPLES OF CORRECT TOPICAL LINKING:
+            - "According to <a href="https://www.osha.gov" target="_blank" rel="noopener noreferrer">OSHA safety guidelines</a> for construction..."
+            - "The <a href="https://www.nrca.net" target="_blank" rel="noopener noreferrer">National Roofing Contractors Association</a> reports..."
             
-            ONLY USE THE VERIFIED URLS PROVIDED - NO EXCEPTIONS!
+            ❌ CONTENT WILL BE REJECTED IF:
+            - Fewer than 2 external links included (MINIMUM requirement)
+            - Any links are not from the topical list above
+            - Links are modified or paths are added
+            - Links missing proper target="_blank" formatting
+            
+            CRITICAL: Include multiple external links throughout your content!
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
@@ -3074,6 +3080,47 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                 console.log(`🔗 Topical Link ${index + 1}: ${link.url} [Authority: ${link.authority_score}] [${link.domain}]`);
             });
             
+            // If no topical links found, do a dedicated Google Search for external links
+            if (topicalExternalLinks.length === 0) {
+                console.log(`🔍 No stored topical links found, performing dedicated Google Search for external links...`);
+                
+                const externalLinkSearchPrompt = `Using Google Search, find 8-10 authoritative sources about "${plan.title}" in the ${client.industry} industry. Focus on:
+                - Government websites (.gov domains)
+                - Industry associations and professional organizations
+                - Educational institutions (.edu domains)  
+                - Credible news sources (no paywalls)
+                - Industry publications and trade websites
+                
+                Avoid paywalled sites like WSJ, Reuters premium, Bloomberg, etc.`;
+                
+                const externalSearchResponse = await ai.models.generateContent({
+                    model: "gemini-2.5-flash",
+                    contents: externalLinkSearchPrompt,
+                    config: {
+                        tools: [{googleSearch: {}}],
+                    },
+                });
+                
+                const externalSources = externalSearchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+                console.log(`📊 Dedicated external link search found ${externalSources.length} sources`);
+                
+                // Validate these sources
+                for (const source of externalSources) {
+                    if (source.web && source.web.uri && topicalExternalLinks.length < 6) {
+                        const url = source.web.uri;
+                        try {
+                            const isValid = await validateUrlExists(url);
+                            if (isValid) {
+                                topicalExternalLinks.push(url);
+                                console.log(`✅ Added dedicated search link: ${url}`);
+                            }
+                        } catch (error) {
+                            console.log(`❌ Invalid dedicated link: ${url}`);
+                        }
+                    }
+                }
+            }
+            
         } catch (topicalError) {
             console.log('Failed to fetch topical external links:', topicalError.message);
         }
@@ -3082,10 +3129,16 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         if (topicalExternalLinks.length < 2) {
             console.warn(`⚠️ Only ${topicalExternalLinks.length} topical links available, adding verified fallbacks`);
             const verifiedLinks = getVerifiedExternalLinks(client.industry);
-            const fallbackNeeded = Math.max(0, 4 - topicalExternalLinks.length);
+            const fallbackNeeded = Math.max(0, 6 - topicalExternalLinks.length);
             topicalExternalLinks = [...topicalExternalLinks, ...verifiedLinks.slice(0, fallbackNeeded)];
             console.log(`🔄 Added ${fallbackNeeded} verified fallback links, total: ${topicalExternalLinks.length}`);
         }
+
+        // Ensure we have the external links available for the content prompt
+        console.log(`📋 Final external links for content generation: ${topicalExternalLinks.length} URLs`);
+        topicalExternalLinks.forEach((url, index) => {
+            console.log(`   ${index + 1}. ${url}`);
+        });
 
         const internalLinksContext = internalLinks.length > 0 
             ? `\nAvailable Internal Links (use these EXACT templates, maximum ONE use per template):
@@ -3171,25 +3224,31 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             - ✅ USE THESE TOPIC-SPECIFIC VALIDATED URLS (choose 2-8 most relevant):
               ${topicalExternalLinks.map(url => `* ${url} ← TOPIC-SPECIFIC & VALIDATED`).join('\n              ')}
             
-            STRICT COPYING RULES:
-            - COPY the exact URL from the list above - character for character
-            - DO NOT add /pages, /articles, or any additional paths
-            - DO NOT modify the URLs in any way
-            - Format: <a href="EXACT_COPIED_URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
+            INTELLIGENT LINKING ADVANTAGES:
+            - URLs are specifically about "${plan.title}" (not generic industry links)
+            - Real-time Google Search results for maximum relevance  
+            - All links validated and working (no 404s or paywalls)
+            - Authority-scored (.gov and .edu sources prioritized)
+            - Automatic cleanup prevents link duplication
             
-            EXAMPLES OF CORRECT COPYING:
-            - Copy: https://www.osha.gov (✅ CORRECT)
-            - Do NOT create: https://www.osha.gov/construction-safety (❌ WRONG - will fail validation)
-            - Copy: https://www.nrca.net (✅ CORRECT)
-            - Do NOT create: https://www.nrca.net/roofing-guidelines (❌ WRONG - will fail validation)
+            MANDATORY REQUIREMENTS:
+            - YOU MUST INCLUDE AT LEAST 3-6 EXTERNAL LINKS FROM THE LIST ABOVE
+            - Use exact URLs from the topical list - DO NOT modify
+            - Format: <a href="EXACT_TOPICAL_URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
+            - Distribute links naturally throughout the article
+            - Each link must provide genuine topical value
             
-            ❌ YOUR CONTENT WILL BE COMPLETELY REJECTED IF:
-            - You use reuters.com, wsj.com, or any URL not in the verified list
-            - You create or modify any URLs instead of copying exactly
-            - You have fewer than 2 external links
-            - Any links return 404 or 401 errors during real-time validation
+            EXAMPLES OF CORRECT TOPICAL LINKING:
+            - "According to <a href="https://www.osha.gov" target="_blank" rel="noopener noreferrer">OSHA safety guidelines</a> for construction..."
+            - "The <a href="https://www.nrca.net" target="_blank" rel="noopener noreferrer">National Roofing Contractors Association</a> reports..."
             
-            ONLY USE THE VERIFIED URLS PROVIDED - NO EXCEPTIONS!
+            ❌ CONTENT WILL BE REJECTED IF:
+            - Fewer than 2 external links included (MINIMUM requirement)
+            - Any links are not from the topical list above
+            - Links are modified or paths are added
+            - Links missing proper target="_blank" formatting
+            
+            CRITICAL: Include multiple external links throughout your content!
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
