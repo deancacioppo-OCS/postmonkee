@@ -704,6 +704,67 @@ function validateExternalLinks(content) {
 
 // --- Web Crawling and Sitemap Functions ---
 
+// ENHANCED: Generate unique topic avoiding duplicates
+async function generateUniqueTopicForClient(clientId, client) {
+    try {
+        // Get existing blog topics to avoid duplication
+        const existingTopics = await pool.query(`
+            SELECT title, url, description, category
+            FROM sitemap_urls 
+            WHERE client_id = $1 
+            AND title IS NOT NULL 
+            AND (category = 'blog' OR url LIKE '%blog%' OR url LIKE '%post%')
+            ORDER BY "createdAt" DESC
+            LIMIT 20
+        `, [clientId]);
+        
+        console.log(`📚 Found ${existingTopics.rows.length} existing blog topics for deduplication check`);
+        
+        // Create context of existing topics for Gemini
+        const existingTopicsContext = existingTopics.rows.length > 0 
+            ? `\n\nIMPORTANT - AVOID DUPLICATE TOPICS:
+            The following blog topics already exist for this client:
+            ${existingTopics.rows.map((blog, index) => 
+                `${index + 1}. "${blog.title}" (${blog.url})`
+            ).join('\n')}
+            
+            🚫 DO NOT choose topics that are too similar to the above existing blogs.
+            
+            ✅ EXCEPTIONS - You MAY choose a related topic if it's a SUPPORTING article that:
+            - Provides a completely different angle or perspective
+            - Goes deeper into a specific sub-topic or aspect
+            - Addresses a different audience segment (beginners vs experts)
+            - Updates information with new developments or trends
+            - Covers a different geographic area or market segment
+            
+            Choose a FRESH, UNIQUE topic that adds genuine value without duplication.`
+            : '\n\nNo existing blog topics found - you have complete freedom to choose any relevant topic.';
+
+        const topicPrompt = `Using Google Search, find one current and highly relevant trending topic, news story, or popular question related to the '${client.industry}' industry.${existingTopicsContext}
+        
+        Provide only the topic name or headline. Do not add any extra formatting or quotation marks.`;
+        
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: topicPrompt,
+            config: {
+                tools: [{googleSearch: {}}],
+            },
+        });
+        
+        const topic = response.text.trim();
+        const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+        
+        console.log(`✅ Generated unique topic: "${topic}" (avoiding ${existingTopics.rows.length} existing topics)`);
+        
+        return { topic, sources, existingTopicsCount: existingTopics.rows.length };
+        
+    } catch (error) {
+        console.error('Error generating unique topic:', error.message);
+        throw error;
+    }
+}
+
 // CRITICAL: Client validation to prevent data bleedthrough
 async function validateClientOwnership(clientId, operation) {
     try {
@@ -1297,20 +1358,14 @@ app.post('/api/generate/topic', async (req, res) => {
     }
 
     try {
-        const prompt = `Using Google Search, find one current and highly relevant trending topic, news story, or popular question related to the '${client.industry}' industry. Provide only the topic name or headline. Do not add any extra formatting or quotation marks.`;
+        // Use the new helper function for topic deduplication
+        const topicResult = await generateUniqueTopicForClient(clientId, client);
         
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: prompt,
-            config: {
-                tools: [{googleSearch: {}}],
-            },
+        res.json({ 
+            topic: topicResult.topic, 
+            sources: topicResult.sources,
+            existingTopicsAvoided: topicResult.existingTopicsCount
         });
-        
-        const topic = response.text.trim();
-        const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-
-        res.json({ topic, sources });
 
     } catch (error) {
         console.error('Error generating topic:', error);
@@ -2315,19 +2370,10 @@ app.post('/api/generate/complete-blog', async (req, res) => {
     }
 
     try {
-        // Step 1: Generate Topic
-        const topicPrompt = `Using Google Search, find one current and highly relevant trending topic, news story, or popular question related to the '${client.industry}' industry. Provide only the topic name or headline. Do not add any extra formatting or quotation marks.`;
-        
-        const topicResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: topicPrompt,
-            config: {
-                tools: [{googleSearch: {}}],
-            },
-        });
-        
-        const topic = topicResponse.text.trim();
-        const sources = topicResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+        // Step 1: Generate Topic (with deduplication)
+        const topicResult = await generateUniqueTopicForClient(clientId, client);
+        const topic = topicResult.topic;
+        const sources = topicResult.sources;
 
         // Step 2: Generate Plan
         const planPrompt = `
@@ -2583,20 +2629,12 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
     try {
         console.log(`🍀 LUCKY MODE: Generating and auto-publishing blog for ${client.name}`);
         
-        // Step 1: Generate Topic
-        console.log(`📝 Step 1: Starting topic generation...`);
-        const topicPrompt = `Using Google Search, find one current and highly relevant trending topic, news story, or popular question related to the '${client.industry}' industry. Provide only the topic name or headline. Do not add any extra formatting or quotation marks.`;
-        
-        const topicResponse = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
-            contents: topicPrompt,
-            config: {
-                tools: [{googleSearch: {}}],
-            },
-        });
-        
-        const topic = topicResponse.text.trim();
-        const sources = topicResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+        // Step 1: Generate Topic (with deduplication)
+        console.log(`📝 Step 1: Starting topic generation with deduplication...`);
+        const topicResult = await generateUniqueTopicForClient(clientId, client);
+        const topic = topicResult.topic;
+        const sources = topicResult.sources;
+        console.log(`✅ Generated unique topic avoiding ${topicResult.existingTopicsCount} existing topics`);
 
         // Step 2: Generate Plan
         const planPrompt = `
