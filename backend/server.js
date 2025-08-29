@@ -534,7 +534,68 @@ WRITING STYLE INSTRUCTIONS:
 `;
 }
 
-// Helper function to get industry-specific authoritative sources
+// ENHANCED: Curated verified external links to prevent 404 errors
+function getVerifiedExternalLinks(industry) {
+    const verifiedLinks = {
+        'insurance': [
+            'https://www.naic.org',
+            'https://www.iii.org',
+            'https://www.iii.org/fact-statistic/facts-statistics-auto-insurance',
+            'https://www.ambest.com',
+            'https://www.insurancejournal.com',
+            'https://www.propertycasualty360.com',
+            'https://www.census.gov/topics/housing.html',
+            'https://www.bls.gov/ooh/business-and-financial/insurance-sales-agents.htm'
+        ],
+        'real estate': [
+            'https://www.nar.realtor',
+            'https://www.realtor.com',
+            'https://www.census.gov/topics/housing.html',
+            'https://www.hud.gov',
+            'https://www.freddiemac.com/research',
+            'https://www.fanniemae.com/research-and-insights',
+            'https://www.zillow.com/research'
+        ],
+        'digital marketing': [
+            'https://blog.hubspot.com',
+            'https://searchengineland.com',
+            'https://www.searchenginejournal.com',
+            'https://contentmarketinginstitute.com',
+            'https://support.google.com/google-ads',
+            'https://developers.facebook.com/docs/marketing-apis'
+        ],
+        'roofing': [
+            'https://www.nrca.net',
+            'https://www.roofingcontractor.com',
+            'https://www.osha.gov',
+            'https://www.iccsafe.org',
+            'https://www.nist.gov'
+        ],
+        'healthcare': [
+            'https://www.cdc.gov',
+            'https://www.who.int',
+            'https://www.nih.gov',
+            'https://www.ama-assn.org',
+            'https://www.hfma.org'
+        ],
+        'general': [
+            'https://www.reuters.com',
+            'https://www.bbc.com',
+            'https://www.wsj.com',
+            'https://www.bloomberg.com',
+            'https://www.cnbc.com',
+            'https://en.wikipedia.org'
+        ]
+    };
+
+    const industryKey = industry.toLowerCase().replace(/[^a-z\s]/g, '').trim();
+    const industryLinks = verifiedLinks[industryKey] || [];
+    const generalLinks = verifiedLinks['general'];
+    
+    return [...industryLinks, ...generalLinks];
+}
+
+// Helper function to get industry-specific authoritative sources (legacy - keeping for compatibility)
 function getIndustryAuthoritativeSources(industry) {
     const sources = {
         'insurance': [
@@ -2495,8 +2556,36 @@ app.post('/api/generate/complete-blog', async (req, res) => {
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
-            EXTERNAL LINKS REQUIREMENTS:
-            - Include 2-8 relevant external links to REAL, LEGITIMATE websites only
+            EXTERNAL LINKS REQUIREMENTS - CRITICAL 404 PREVENTION:
+            - Include 2-8 relevant external links to VERIFIED, WORKING websites only
+            - 🚫 NEVER CREATE OR GUESS URLs - Only use the verified links provided below
+            - 🚫 NEVER add paths, subdirectories, or specific pages unless explicitly listed
+            - ✅ ONLY USE THESE VERIFIED WORKING URLS (choose 2-8 that are relevant):
+              ${getVerifiedExternalLinks(client.industry).map(url => `* ${url}`).join('\n              ')}
+            
+            LINKING RULES:
+            - Use EXACT URLs from the list above - DO NOT modify or add paths
+            - If you need a specific page, only use URLs that include the full path (like the iii.org example)
+            - For general references, use root domains only (like https://www.naic.org)
+            - Links must be contextually integrated into the content naturally
+            - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
+            - Format: <a href="EXACT_URL_FROM_LIST" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
+            
+            EXAMPLES OF CORRECT USAGE:
+            - "The <a href=\"https://www.naic.org\" target=\"_blank\" rel=\"noopener noreferrer\">National Association of Insurance Commissioners</a> provides industry oversight..."
+            - "According to <a href=\"https://www.iii.org\" target=\"_blank\" rel=\"noopener noreferrer\">Insurance Information Institute</a> research..."
+            - "Recent <a href=\"https://www.reuters.com\" target=\"_blank\" rel=\"noopener noreferrer\">Reuters</a> reporting shows..."
+            
+            ❌ NEVER DO THIS:
+            - https://www.naic.org/consumer-guides/auto-insurance (path doesn't exist)
+            - https://www.iii.org/statistics/liability-coverage (made up path)  
+            - Any URL not in the verified list above
+            
+            PRIORITY ORDER:
+            1. Industry-specific verified URLs (top of list)
+            2. Government sources (.gov domains from list)
+            3. General news sources (bottom of list)
+            4. Wikipedia ONLY as absolute last resort for basic definitions
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
@@ -2764,8 +2853,36 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
             
-            EXTERNAL LINKS REQUIREMENTS:
-            - Include 2-8 relevant external links to REAL, LEGITIMATE websites only
+            EXTERNAL LINKS REQUIREMENTS - CRITICAL 404 PREVENTION:
+            - Include 2-8 relevant external links to VERIFIED, WORKING websites only
+            - 🚫 NEVER CREATE OR GUESS URLs - Only use the verified links provided below
+            - 🚫 NEVER add paths, subdirectories, or specific pages unless explicitly listed
+            - ✅ ONLY USE THESE VERIFIED WORKING URLS (choose 2-8 that are relevant):
+              ${getVerifiedExternalLinks(client.industry).map(url => `* ${url}`).join('\n              ')}
+            
+            LINKING RULES:
+            - Use EXACT URLs from the list above - DO NOT modify or add paths
+            - If you need a specific page, only use URLs that include the full path (like the iii.org example)
+            - For general references, use root domains only (like https://www.naic.org)
+            - Links must be contextually integrated into the content naturally
+            - Use descriptive, keyword-rich anchor text that accurately reflects the linked content
+            - Format: <a href="EXACT_URL_FROM_LIST" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
+            
+            EXAMPLES OF CORRECT USAGE:
+            - "The <a href=\"https://www.naic.org\" target=\"_blank\" rel=\"noopener noreferrer\">National Association of Insurance Commissioners</a> provides industry oversight..."
+            - "According to <a href=\"https://www.iii.org\" target=\"_blank\" rel=\"noopener noreferrer\">Insurance Information Institute</a> research..."
+            - "Recent <a href=\"https://www.reuters.com\" target=\"_blank\" rel=\"noopener noreferrer\">Reuters</a> reporting shows..."
+            
+            ❌ NEVER DO THIS:
+            - https://www.naic.org/consumer-guides/auto-insurance (path doesn't exist)
+            - https://www.iii.org/statistics/liability-coverage (made up path)  
+            - Any URL not in the verified list above
+            
+            PRIORITY ORDER:
+            1. Industry-specific verified URLs (top of list)
+            2. Government sources (.gov domains from list)
+            3. General news sources (bottom of list)
+            4. Wikipedia ONLY as absolute last resort for basic definitions
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
