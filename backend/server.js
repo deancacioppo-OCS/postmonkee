@@ -2122,9 +2122,7 @@ app.post('/api/publish/wordpress', async (req, res) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`,
-                'User-Agent': 'BlogMonkee/1.0 (+https://blogmonkee.com)',
-                'X-Requested-With': 'XMLHttpRequest'
+                'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
             },
             body: JSON.stringify(postData)
         });
@@ -3481,9 +3479,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`,
-                'User-Agent': 'BlogMonkee/1.0 (+https://blogmonkee.com)',
-                'X-Requested-With': 'XMLHttpRequest'
+                'Authorization': `Basic ${Buffer.from(`${client.wp.username}:${client.wp.appPassword}`).toString('base64')}`
             },
             body: JSON.stringify(postData)
         });
