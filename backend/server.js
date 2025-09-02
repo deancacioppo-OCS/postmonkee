@@ -217,10 +217,12 @@ async function initializeDb() {
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? [
+        'https://monkee.ai',
+        'https://www.monkee.ai', 
         'https://blog-monkee-frontend.onrender.com',
-        // Allow any Netlify domain
+        // Allow any Netlify domain (legacy support)
         /https:\/\/.*\.netlify\.app$/,
-        // Allow any Netlify custom domain
+        // Allow any Netlify custom domain (legacy support)
         /https:\/\/.*\.netlify\.com$/
       ]
     : ['http://localhost:5173', 'http://localhost:3000']
