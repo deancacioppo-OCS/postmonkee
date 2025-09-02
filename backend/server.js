@@ -3020,38 +3020,7 @@ app.post('/api/generate/complete-blog', async (req, res) => {
               * NEVER create your own URLs or modify templates
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
-            
-            🚀 REAL-TIME TOPICAL EXTERNAL LINKS - GOOGLE SEARCH POWERED:
-            - These URLs were found via Google Search specifically for your topic: "${plan.title}"
-            - All URLs have been validated in real-time and are guaranteed to work
-            - ✅ USE THESE TOPIC-SPECIFIC VALIDATED URLS (choose 2-8 most relevant):
-              ${topicalExternalLinks.map(url => `* ${url} ← TOPIC-SPECIFIC & VALIDATED`).join('\n              ')}
-            
-            INTELLIGENT LINKING ADVANTAGES:
-            - URLs are specifically about "${plan.title}" (not generic industry links)
-            - Real-time Google Search results for maximum relevance  
-            - All links validated and working (no 404s or paywalls)
-            - Authority-scored (.gov and .edu sources prioritized)
-            - Automatic cleanup prevents link duplication
-            
-            MANDATORY REQUIREMENTS:
-            - YOU MUST INCLUDE AT LEAST 3-6 EXTERNAL LINKS FROM THE LIST ABOVE
-            - Use exact URLs from the topical list - DO NOT modify
-            - Format: <a href="EXACT_TOPICAL_URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
-            - Distribute links naturally throughout the article
-            - Each link must provide genuine topical value
-            
-            EXAMPLES OF CORRECT TOPICAL LINKING:
-            - "According to <a href="https://www.osha.gov" target="_blank" rel="noopener noreferrer">OSHA safety guidelines</a> for construction..."
-            - "The <a href="https://www.nrca.net" target="_blank" rel="noopener noreferrer">National Roofing Contractors Association</a> reports..."
-            
-            ❌ CONTENT WILL BE REJECTED IF:
-            - Fewer than 2 external links included (MINIMUM requirement)
-            - Any links are not from the topical list above
-            - Links are modified or paths are added
-            - Links missing proper target="_blank" formatting
-            
-            CRITICAL: Include multiple external links throughout your content!
+
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
@@ -3399,6 +3368,28 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         // Step 4: Generate Complete Blog Content
         const contentStyleContext = createContentStyleContext(internalLinks);
         
+        // Create external links context with discovered deep links
+        const externalLinksContext = topicalExternalLinks.length > 0 
+            ? `\n🚀 MANDATORY EXTERNAL LINKS - REAL-TIME DISCOVERED & VALIDATED:
+            These URLs were discovered in real-time and validated specifically for your topic: "${plan.title}"
+            ✅ YOU MUST USE 3-6 OF THESE VALIDATED URLS (they are guaranteed to work):
+            ${topicalExternalLinks.map((url, index) => `${index + 1}. ${url} ← VALIDATED & TOPIC-RELEVANT`).join('\n            ')}
+            
+            🚨 CRITICAL REQUIREMENT:
+            - YOU MUST INCLUDE AT LEAST 3-4 EXTERNAL LINKS FROM THE LIST ABOVE
+            - These links were specifically discovered for your topic
+            - All links have been validated and are guaranteed to work
+            - Format: <a href="EXACT_URL_FROM_LIST" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
+            - Distribute links naturally throughout your content
+            - Each link provides genuine value related to "${plan.title}"
+            
+            EXAMPLES OF CORRECT USAGE:
+            - "According to <a href="https://www.bbc.com/innovation" target="_blank" rel="noopener noreferrer">BBC Innovation</a> coverage..."
+            - "Recent <a href="https://www.census.gov" target="_blank" rel="noopener noreferrer">U.S. Census data</a> shows..."
+            
+            ❌ CONTENT WILL BE REJECTED IF YOU DON'T INCLUDE EXTERNAL LINKS FROM THE LIST ABOVE`
+            : '\n⚠️ No external links available - do not include any external links.';
+        
         const contentPrompt = `
             You are an expert content writer for a company in the '${client.industry}' industry.
             Company's unique value proposition: '${client.uniqueValueProp}'
@@ -3412,6 +3403,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             Angle: ${plan.angle}
             Target Keywords: ${plan.keywords.join(', ')}
             ${internalLinksContext}
+            ${externalLinksContext}
             
             Requirements:
             - Write in HTML format with proper headings (h1, h2, h3)
@@ -3453,38 +3445,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
               * NEVER create your own URLs or modify templates
               * If no templates are genuinely relevant to your topic, use fewer links or none
               * Quality over quantity - better to have 2 perfect links than 6 poor ones
-            
-            🚀 REAL-TIME TOPICAL EXTERNAL LINKS - GOOGLE SEARCH POWERED:
-            - These URLs were found via Google Search specifically for your topic: "${plan.title}"
-            - All URLs have been validated in real-time and are guaranteed to work
-            - ✅ USE THESE TOPIC-SPECIFIC VALIDATED URLS (choose 2-8 most relevant):
-              ${topicalExternalLinks.map(url => `* ${url} ← TOPIC-SPECIFIC & VALIDATED`).join('\n              ')}
-            
-            INTELLIGENT LINKING ADVANTAGES:
-            - URLs are specifically about "${plan.title}" (not generic industry links)
-            - Real-time Google Search results for maximum relevance  
-            - All links validated and working (no 404s or paywalls)
-            - Authority-scored (.gov and .edu sources prioritized)
-            - Automatic cleanup prevents link duplication
-            
-            MANDATORY REQUIREMENTS:
-            - YOU MUST INCLUDE AT LEAST 3-6 EXTERNAL LINKS FROM THE LIST ABOVE
-            - Use exact URLs from the topical list - DO NOT modify
-            - Format: <a href="EXACT_TOPICAL_URL" target="_blank" rel="noopener noreferrer">descriptive anchor text</a>
-            - Distribute links naturally throughout the article
-            - Each link must provide genuine topical value
-            
-            EXAMPLES OF CORRECT TOPICAL LINKING:
-            - "According to <a href="https://www.osha.gov" target="_blank" rel="noopener noreferrer">OSHA safety guidelines</a> for construction..."
-            - "The <a href="https://www.nrca.net" target="_blank" rel="noopener noreferrer">National Roofing Contractors Association</a> reports..."
-            
-            ❌ CONTENT WILL BE REJECTED IF:
-            - Fewer than 2 external links included (MINIMUM requirement)
-            - Any links are not from the topical list above
-            - Links are modified or paths are added
-            - Links missing proper target="_blank" formatting
-            
-            CRITICAL: Include multiple external links throughout your content!
+
             - CRITICAL: Only reference actual websites that exist and provide genuine information
             - NEVER create fictional URLs or hypothetical websites
             - PRIORITIZE THESE REAL AUTHORITATIVE SOURCES BY INDUSTRY:
