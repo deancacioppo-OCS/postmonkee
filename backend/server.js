@@ -631,11 +631,11 @@ function getVerifiedExternalLinks(industry) {
         'roofing': [
             'https://www.nrca.net',
             'https://www.roofingcontractor.com',
-            'https://www.osha.gov',
             'https://www.iccsafe.org',
             'https://www.nist.gov',
             'https://www.epa.gov',
-            'https://www.energystar.gov'
+            'https://www.energystar.gov',
+            'https://www.ready.gov'
         ],
         'healthcare': [
             'https://www.cdc.gov',
@@ -648,8 +648,8 @@ function getVerifiedExternalLinks(industry) {
             'https://www.bbc.com',
             'https://www.cnbc.com',
             'https://www.cdc.gov',
-            'https://www.osha.gov',
             'https://www.census.gov',
+            'https://www.ready.gov',
             'https://en.wikipedia.org'
         ]
     };
