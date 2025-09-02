@@ -944,8 +944,15 @@ async function generateUniqueTopicForClient(clientId, client) {
         for (const source of sources) {
             if (source.web && source.web.uri) {
                 const url = source.web.uri;
+                
+                // CRITICAL FIX: Filter out Google redirect URLs that expire
+                if (url.includes('grounding-api-redirect') || url.includes('vertexaisearch.cloud.google.com')) {
+                    console.log(`🚫 Skipping Google redirect URL: ${url.substring(0, 80)}...`);
+                    continue;
+                }
+                
                 try {
-                    // Real-time validation
+                    // Real-time validation for actual destination URLs only
                     const isValid = await validateUrlExists(url);
                     if (isValid) {
                         const domain = new URL(url).hostname.toLowerCase();
@@ -3108,6 +3115,13 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                 for (const source of externalSources) {
                     if (source.web && source.web.uri && topicalExternalLinks.length < 6) {
                         const url = source.web.uri;
+                        
+                        // CRITICAL FIX: Filter out Google redirect URLs that expire
+                        if (url.includes('grounding-api-redirect') || url.includes('vertexaisearch.cloud.google.com')) {
+                            console.log(`🚫 Skipping Google redirect URL in dedicated search: ${url.substring(0, 80)}...`);
+                            continue;
+                        }
+                        
                         try {
                             const isValid = await validateUrlExists(url);
                             if (isValid) {
@@ -3125,13 +3139,24 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             console.log('Failed to fetch topical external links:', topicalError.message);
         }
 
-        // Fallback to verified URLs if insufficient topical links
-        if (topicalExternalLinks.length < 2) {
-            console.warn(`⚠️ Only ${topicalExternalLinks.length} topical links available, adding verified fallbacks`);
+        // Enhanced fallback system for when Google redirect URLs are filtered
+        if (topicalExternalLinks.length < 3) {
+            console.warn(`⚠️ Only ${topicalExternalLinks.length} topical links available (Google redirects filtered), adding verified fallbacks`);
             const verifiedLinks = getVerifiedExternalLinks(client.industry);
+            
+            // Ensure we have at least 4-6 quality external links
             const fallbackNeeded = Math.max(0, 6 - topicalExternalLinks.length);
-            topicalExternalLinks = [...topicalExternalLinks, ...verifiedLinks.slice(0, fallbackNeeded)];
-            console.log(`🔄 Added ${fallbackNeeded} verified fallback links, total: ${topicalExternalLinks.length}`);
+            const fallbackUrls = verifiedLinks.slice(0, fallbackNeeded);
+            
+            // Add verified fallbacks that aren't duplicates
+            for (const fallbackUrl of fallbackUrls) {
+                if (!topicalExternalLinks.includes(fallbackUrl)) {
+                    topicalExternalLinks.push(fallbackUrl);
+                }
+            }
+            
+            console.log(`🔄 Added ${topicalExternalLinks.length - (topicalExternalLinks.length - fallbackUrls.length)} verified fallback links`);
+            console.log(`📊 Total external links available: ${topicalExternalLinks.length}`);
         }
 
         // Ensure we have the external links available for the content prompt
