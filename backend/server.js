@@ -323,6 +323,197 @@ function generateOpenGraphTags(title, description, imageUrl, pageUrl, clientName
     return openGraphHTML;
 }
 
+// REVOLUTIONARY: Real-time page discovery for intelligent deep linking
+async function discoverRelevantPages(rootDomain, topic, industry) {
+    try {
+        console.log(`🔍 Starting real-time page discovery on ${rootDomain} for topic: "${topic}"`);
+        
+        // Step 1: Crawl the external site to discover pages
+        const crawledPages = await crawlExternalSite(rootDomain, topic, industry);
+        
+        if (crawledPages.length === 0) {
+            console.log(`⚠️ No pages discovered on ${rootDomain}, using root domain`);
+            return [];
+        }
+        
+        // Step 2: AI analyzes discovered pages for topic relevance
+        console.log(`🧠 AI analyzing ${crawledPages.length} discovered pages for relevance to "${topic}"`);
+        
+        const relevancePrompt = `Analyze these pages from ${rootDomain} and identify the 2-3 most relevant to the topic "${topic}" in the ${industry} industry:
+
+${crawledPages.map((page, index) => 
+    `${index + 1}. URL: ${page.url}
+    Title: ${page.title}
+    Description: ${page.description}
+    Content Preview: ${page.contentPreview}`
+).join('\n\n')}
+
+Requirements:
+- Choose 2-3 pages most relevant to "${topic}"
+- Prioritize pages with substantial, authoritative content
+- Avoid generic pages (contact, about, home)
+- Focus on informational, educational, or research content
+- Return only the URLs of the most relevant pages
+
+If no pages are highly relevant to "${topic}", return an empty list.`;
+
+        const relevanceResponse = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: relevancePrompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        relevantUrls: {
+                            type: Type.ARRAY,
+                            items: { type: Type.STRING },
+                            description: 'URLs of 2-3 most relevant pages'
+                        },
+                        reasoning: {
+                            type: Type.STRING,
+                            description: 'Brief explanation of why these pages are relevant'
+                        }
+                    },
+                    required: ["relevantUrls", "reasoning"]
+                }
+            }
+        });
+        
+        const relevanceData = JSON.parse(relevanceResponse.text);
+        console.log(`🎯 AI found ${relevanceData.relevantUrls.length} relevant pages: ${relevanceData.reasoning}`);
+        
+        // Step 3: Validate discovered relevant pages
+        const validatedDeepLinks = [];
+        for (const url of relevanceData.relevantUrls) {
+            try {
+                const isValid = await validateUrlExists(url);
+                if (isValid) {
+                    validatedDeepLinks.push(url);
+                    console.log(`✅ Validated deep link: ${url}`);
+                } else {
+                    console.log(`❌ Invalid deep link: ${url}`);
+                }
+            } catch (validationError) {
+                console.log(`⚠️ Deep link validation failed: ${url}`);
+            }
+        }
+        
+        console.log(`🎉 Real-time discovery complete: ${validatedDeepLinks.length} validated deep links from ${rootDomain}`);
+        return validatedDeepLinks;
+        
+    } catch (error) {
+        console.error(`❌ Real-time page discovery failed for ${rootDomain}:`, error.message);
+        return []; // Return empty array, will fallback to root domain
+    }
+}
+
+// Helper function to crawl external site and discover pages
+async function crawlExternalSite(rootDomain, topic, industry) {
+    try {
+        console.log(`🕷️ Crawling ${rootDomain} to discover pages...`);
+        
+        // Fetch the main page
+        const response = await axios.get(rootDomain, {
+            timeout: 10000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; BlogMonkee/1.0; +http://blogmonkee.com/bot)'
+            }
+        });
+        
+        const $ = cheerio.load(response.data);
+        const discoveredPages = [];
+        const processedUrls = new Set([rootDomain]);
+        
+        // Extract links from the main page
+        $('a[href]').each((i, element) => {
+            if (discoveredPages.length >= 15) return; // Limit for performance
+            
+            let href = $(element).attr('href');
+            if (!href) return;
+            
+            // Convert relative URLs to absolute
+            if (href.startsWith('/')) {
+                href = rootDomain + href;
+            } else if (!href.startsWith('http')) {
+                href = rootDomain + '/' + href;
+            }
+            
+            // Only process URLs from the same domain
+            try {
+                const urlObj = new URL(href);
+                if (urlObj.hostname !== new URL(rootDomain).hostname) return;
+            } catch (urlError) {
+                return; // Skip invalid URLs
+            }
+            
+            // Skip unwanted URLs
+            if (href.includes('#') || href.includes('?') || 
+                href.includes('.pdf') || href.includes('.jpg') || 
+                href.includes('.png') || href.includes('mailto:') ||
+                href.includes('tel:') || processedUrls.has(href)) {
+                return;
+            }
+            
+            processedUrls.add(href);
+            
+            // Extract page information
+            const linkText = $(element).text().trim();
+            const title = linkText || 'Page';
+            
+            discoveredPages.push({
+                url: href,
+                title: title,
+                description: `Page about ${linkText}`,
+                contentPreview: linkText
+            });
+        });
+        
+        console.log(`📄 Discovered ${discoveredPages.length} pages on ${rootDomain}`);
+        
+        // Enhanced page analysis for better content previews
+        const enhancedPages = [];
+        for (const page of discoveredPages.slice(0, 8)) { // Analyze top 8 pages
+            try {
+                console.log(`📖 Analyzing page content: ${page.url}`);
+                const pageResponse = await axios.get(page.url, {
+                    timeout: 8000,
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (compatible; BlogMonkee/1.0; +http://blogmonkee.com/bot)'
+                    }
+                });
+                
+                const page$ = cheerio.load(pageResponse.data);
+                
+                // Extract meaningful content
+                const pageTitle = page$('title').text() || page$('h1').first().text() || page.title;
+                const metaDescription = page$('meta[name="description"]').attr('content') || '';
+                const firstParagraph = page$('p').first().text().substring(0, 200) || '';
+                
+                enhancedPages.push({
+                    url: page.url,
+                    title: pageTitle.trim(),
+                    description: metaDescription || firstParagraph,
+                    contentPreview: firstParagraph
+                });
+                
+                console.log(`✅ Analyzed: ${pageTitle} - ${metaDescription.substring(0, 50)}...`);
+                
+            } catch (pageError) {
+                console.log(`⚠️ Failed to analyze page ${page.url}: ${pageError.message}`);
+                // Use basic page info if detailed analysis fails
+                enhancedPages.push(page);
+            }
+        }
+        
+        return enhancedPages;
+        
+    } catch (crawlError) {
+        console.error(`❌ External site crawling failed for ${rootDomain}:`, crawlError.message);
+        return [];
+    }
+}
+
 // Helper function to generate image in parallel using DALL-E 3
 async function generateFeaturedImage(title, industry) {
     console.log(`🖼️ Starting parallel DALL-E 3 image generation for "${title}"`);
@@ -3139,24 +3330,44 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             console.log('Failed to fetch topical external links:', topicalError.message);
         }
 
-        // Enhanced fallback system for when Google redirect URLs are filtered
+        // ENHANCED: Real-time page discovery for deep linking
         if (topicalExternalLinks.length < 3) {
-            console.warn(`⚠️ Only ${topicalExternalLinks.length} topical links available (Google redirects filtered), adding verified fallbacks`);
+            console.warn(`⚠️ Only ${topicalExternalLinks.length} topical links available (Google redirects filtered), performing real-time page discovery...`);
+            
+            // Get verified root domains for deep link discovery
             const verifiedLinks = getVerifiedExternalLinks(client.industry);
+            console.log(`🔍 Starting real-time page discovery on ${verifiedLinks.length} verified domains for topic: "${plan.title}"`);
             
-            // Ensure we have at least 4-6 quality external links
-            const fallbackNeeded = Math.max(0, 6 - topicalExternalLinks.length);
-            const fallbackUrls = verifiedLinks.slice(0, fallbackNeeded);
-            
-            // Add verified fallbacks that aren't duplicates
-            for (const fallbackUrl of fallbackUrls) {
-                if (!topicalExternalLinks.includes(fallbackUrl)) {
-                    topicalExternalLinks.push(fallbackUrl);
+            // Discover deep links from verified domains
+            for (const rootDomain of verifiedLinks.slice(0, 4)) { // Limit to 4 domains for performance
+                if (topicalExternalLinks.length >= 6) break; // Stop when we have enough links
+                
+                try {
+                    console.log(`🕷️ Discovering pages on ${rootDomain} relevant to "${plan.title}"`);
+                    const deepLinks = await discoverRelevantPages(rootDomain, plan.title, client.industry);
+                    
+                    for (const deepLink of deepLinks) {
+                        if (!topicalExternalLinks.includes(deepLink) && topicalExternalLinks.length < 6) {
+                            topicalExternalLinks.push(deepLink);
+                            console.log(`✅ Added deep link: ${deepLink}`);
+                        }
+                    }
+                    
+                    // Add root domain as fallback if no deep links found
+                    if (deepLinks.length === 0 && !topicalExternalLinks.includes(rootDomain)) {
+                        topicalExternalLinks.push(rootDomain);
+                        console.log(`🔄 Added root domain fallback: ${rootDomain}`);
+                    }
+                    
+                } catch (discoveryError) {
+                    console.log(`⚠️ Page discovery failed for ${rootDomain}, using root domain: ${discoveryError.message}`);
+                    if (!topicalExternalLinks.includes(rootDomain)) {
+                        topicalExternalLinks.push(rootDomain);
+                    }
                 }
             }
             
-            console.log(`🔄 Added ${topicalExternalLinks.length - (topicalExternalLinks.length - fallbackUrls.length)} verified fallback links`);
-            console.log(`📊 Total external links available: ${topicalExternalLinks.length}`);
+            console.log(`📊 Real-time discovery complete: ${topicalExternalLinks.length} total external links`);
         }
 
         // Ensure we have the external links available for the content prompt
