@@ -132,14 +132,14 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
 const InputField = ({ label, ...props }) => (
     <div>
         <label htmlFor={props.name} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
-        <input id={props.name} {...props} className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500 transition"/>
+        <input id={props.name} {...props} className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500 transition"/>
     </div>
 );
 
 const TextareaField = ({ label, ...props }) => (
     <div>
         <label htmlFor={props.name} className="block text-sm font-medium text-slate-300 mb-1">{label}</label>
-        <textarea id={props.name} {...props} rows={3} className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 focus:ring-cyan-500 focus:border-cyan-500 transition"></textarea>
+        <textarea id={props.name} {...props} rows={3} className="w-full bg-slate-900 border border-slate-600 rounded-md p-2 text-white placeholder-slate-400 focus:ring-cyan-500 focus:border-cyan-500 transition"></textarea>
     </div>
 );
 
