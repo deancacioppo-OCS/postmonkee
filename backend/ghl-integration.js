@@ -250,8 +250,12 @@ function createGBPPostEndpoint(app, pool, ai, openai, axios) {
 
       // Phase 1: Generate content only
       console.log(`🤖 Generating GBP content...`);
+      console.log(`📊 businessInfo before generation:`, JSON.stringify(businessInfo, null, 2));
+      console.log(`📊 topic:`, topic);
+      console.log(`📊 ai object:`, ai ? 'exists' : 'null/undefined');
+      
       const content = await generateGBPContent(topic, businessInfo, ai);
-      console.log(`✅ Content generated: ${content.substring(0, 100)}...`);
+      console.log(`✅ Content generated:`, content ? `${content.substring(0, 100)}...` : 'null/undefined');
 
       // Save to database (simple version)
       const dbClient = await pool.connect();
