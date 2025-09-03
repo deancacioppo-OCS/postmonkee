@@ -3,7 +3,7 @@ import { Client } from './types';
 import * as api from './services/geminiService';
 import ClientCard from './components/ClientCard';
 import ClientFormModal from './components/ClientFormModal';
-import GenerationWorkflow from './components/GenerationWorkflow';
+
 import GBPPostCreator from './components/GBPPostCreator';
 import ErrorBoundary from './components/ErrorBoundary';
 import DebugPanel from './components/DebugPanel';
@@ -17,12 +17,12 @@ const App: React.FC = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'blog' | 'gbp'>('gbp');
+
 
   // Setup global error handling
   useEffect(() => {
     setupGlobalErrorHandling();
-    logger.componentMount('App', { activeTab });
+    logger.componentMount('App', {});
     
     return () => {
       logger.componentUnmount('App');
@@ -97,9 +97,7 @@ const App: React.FC = () => {
     logger.stateChange('App', 'selectedClient', null, selectedClient);
   }, [selectedClient]);
 
-  useEffect(() => {
-    logger.stateChange('App', 'activeTab', null, activeTab);
-  }, [activeTab]);
+
 
   return (
     <ErrorBoundary>
@@ -168,41 +166,12 @@ const App: React.FC = () => {
         </div>
 
         <div className="bg-slate-800 p-6 rounded-lg shadow-lg">
-          {/* Tab Navigation */}
-          <div className="flex space-x-1 mb-6 bg-slate-700 p-1 rounded-lg">
-            <button
-              onClick={() => setActiveTab('gbp')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'gbp'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-600'
-              }`}
-            >
-              Google Business Profile Posts
-            </button>
-            <button
-              onClick={() => setActiveTab('blog')}
-              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                activeTab === 'blog'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-slate-300 hover:text-white hover:bg-slate-600'
-              }`}
-            >
-              Blog Generation
-            </button>
-          </div>
-
-          {/* Tab Content */}
-          {activeTab === 'gbp' ? (
-            <GBPPostCreator 
-              client={selectedClient} 
-              onPostCreated={() => {
-                // Optionally refresh data or show success message
-              }}
-            />
-          ) : (
-            <GenerationWorkflow client={selectedClient} />
-          )}
+          <GBPPostCreator 
+            client={selectedClient} 
+            onPostCreated={() => {
+              // Optionally refresh data or show success message
+            }}
+          />
         </div>
       </main>
 

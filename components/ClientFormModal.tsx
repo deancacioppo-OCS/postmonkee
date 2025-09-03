@@ -19,7 +19,7 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
       uniqueValueProp: '',
       brandVoice: '',
       contentStrategy: '',
-      wp: { url: '', username: '' }
+
     }
   );
   const [isLoading, setIsLoading] = useState(false);
@@ -27,12 +27,7 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    if (name.startsWith('wp.')) {
-        const wpField = name.split('.')[1];
-        setFormData(prev => ({ ...prev, wp: { ...prev.wp, [wpField]: value } }));
-    } else {
-        setFormData(prev => ({ ...prev, [name]: value }));
-    }
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,19 +108,9 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
               <p className="mt-2 text-xs text-cyan-400">💡 Tip: This is required for Google Business Profile post scheduling</p>
             </div>
 
-            <h3 className="text-lg font-semibold text-slate-300 pt-4 border-t border-slate-700">WordPress Details</h3>
-            <InputField label="WordPress Site URL" name="wp.url" value={formData.wp?.url || ''} onChange={handleChange} type="url" />
-            <InputField label="WordPress Username" name="wp.username" value={formData.wp?.username || ''} onChange={handleChange} />
-            <InputField label="WordPress App Password" name="wp.appPassword" value={formData.wp?.appPassword || ''} onChange={handleChange} type="password" autoComplete="current-password" />
-            
             {/* GoHighLevel Test Button - only show if client exists and has location ID */}
             {client?.id && formData.ghlLocationId && (
                 <GoHighLevelTestButton clientId={client.id} locationId={formData.ghlLocationId} />
-            )}
-
-            {/* WordPress Test Button - only show if client exists and has WP credentials */}
-            {client?.id && formData.wp?.url && formData.wp?.username && formData.wp?.appPassword && (
-                <WordPressTestButton clientId={client.id} />
             )}
 
           <div className="flex justify-end gap-4 pt-4">
@@ -158,69 +143,7 @@ const TextareaField = ({ label, ...props }) => (
     </div>
 );
 
-// WordPress Test Button Component
-const WordPressTestButton = ({ clientId }) => {
-    const [testing, setTesting] = useState(false);
-    const [testResult, setTestResult] = useState(null);
 
-    const handleTest = async () => {
-        setTesting(true);
-        setTestResult(null);
-        try {
-            const result = await api.testWordPressConnection(clientId);
-            setTestResult(result);
-        } catch (err) {
-            setTestResult({ 
-                success: false, 
-                error: 'Connection test failed', 
-                details: err.message 
-            });
-        } finally {
-            setTesting(false);
-        }
-    };
-
-    return (
-        <div className="p-3 bg-slate-700 rounded-md">
-            <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-slate-300">Test WordPress Connection</span>
-                <button
-                    type="button"
-                    onClick={handleTest}
-                    disabled={testing}
-                    className="bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-3 rounded transition-colors disabled:opacity-50 flex items-center gap-2"
-                >
-                    {testing && <Spinner small />}
-                    {testing ? 'Testing...' : 'Test Connection'}
-                </button>
-            </div>
-            
-            {testResult && (
-                <div className={`text-sm p-2 rounded ${testResult.success ? 'bg-green-800 text-green-200' : 'bg-red-800 text-red-200'}`}>
-                    {testResult.success ? (
-                        <div>
-                            <p className="font-medium">✓ Connection successful!</p>
-                            <p>Connected as: {testResult.user?.name} (@{testResult.user?.username})</p>
-                        </div>
-                    ) : (
-                        <div>
-                            <p className="font-medium">✗ Connection failed</p>
-                            <p>{testResult.error}</p>
-                            {testResult.details && <p className="text-xs mt-1">{testResult.details}</p>}
-                            {testResult.suggestions && (
-                                <ul className="text-xs mt-2 list-disc list-inside">
-                                    {testResult.suggestions.map((suggestion, i) => (
-                                        <li key={i}>{suggestion}</li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-};
 
 // Website Crawl Test Button Component
 const WebsiteCrawlTestButton = ({ clientId, websiteUrl }) => {

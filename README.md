@@ -82,7 +82,7 @@ postMONKEE is a sophisticated AI-powered Google Business Profile post generation
 - Node.js with Express.js
 - PostgreSQL with automated migrations and enhanced schema
 - Multi-AI integration with comprehensive error handling
-- WordPress API publishing with media management and Open Graph
+- GoHighLevel Social Planner API integration
 - Image processing with Sharp for photorealistic optimization
 - Real-time URL validation system
 
@@ -187,7 +187,7 @@ npm run dev
 - **Client Management**: ✅ Add/edit clients with GoHighLevel Location ID
 - **GoHighLevel Integration**: ✅ Location ID field and connection testing
 - **Error Handling**: ✅ Comprehensive error boundaries and debugging tools
-- **UI/UX**: ✅ Responsive design with tab navigation (GBP Posts / Blog Generation)
+- **UI/UX**: ✅ Responsive design optimized for GBP post creation
 - **Deployment**: ✅ Live on Netlify with automatic deployments
 
 ### **✅ Backend - Ready for Testing**
