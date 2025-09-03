@@ -109,10 +109,5 @@ export const setupGlobalErrorHandling = () => {
     });
   });
 
-  // Console error override for better tracking
-  const originalConsoleError = console.error;
-  console.error = (...args) => {
-    logger.error('Console Error', args[0], args.slice(1));
-    originalConsoleError.apply(console, args);
-  };
+  // Note: Removed console.error override to prevent infinite recursion
 };
