@@ -63,7 +63,7 @@ const App: React.FC = () => {
         <h1 className="text-4xl sm:text-5xl font-bold text-cyan-400">
           post<span className="text-slate-300">MONKEE</span>
         </h1>
-        <p className="text-slate-400 mt-2">AI-Powered Google Business Profile Post Generator v1.0</p>
+        <p className="text-slate-400 mt-2">AI-Powered Google Business Profile Post Generator v2.0 - GoHighLevel Ready</p>
       </header>
 
       <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
