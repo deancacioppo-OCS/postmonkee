@@ -3798,3 +3798,4 @@ app.listen(port, () => {
   console.log(`Blog MONKEE backend listening at http://localhost:${port}`);
   console.log('ðŸ”„ Database migration version: v2.0 - Enhanced crawling support');
   initializeDb();
+});
