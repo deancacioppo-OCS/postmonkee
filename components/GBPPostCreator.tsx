@@ -167,7 +167,7 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
                 value={ghlLocationId}
                 onChange={(e) => setGhlLocationId(e.target.value)}
                 placeholder="Enter GoHighLevel Location ID"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
               />
             </div>
             
@@ -180,7 +180,7 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
                 value={ghlSubAccountName}
                 onChange={(e) => setGhlSubAccountName(e.target.value)}
                 placeholder={`${client.name} - GHL`}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
               />
             </div>
           </div>
@@ -194,7 +194,7 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
               value={ghlAccessToken}
               onChange={(e) => setGhlAccessToken(e.target.value)}
               placeholder="Enter GoHighLevel Access Token"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
             />
           </div>
           
@@ -248,7 +248,7 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
             placeholder="What would you like to post about?"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
           />
         </div>
 
