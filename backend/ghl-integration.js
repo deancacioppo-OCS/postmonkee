@@ -465,6 +465,5 @@ export {
   createGBPPostEndpoint,
   getGBPPostsEndpoint,
   manageGHLSubAccountsEndpoint,
-  getGHLSubAccountsEndpoint,
-  testGHLConnectionEndpoint
+  getGHLSubAccountsEndpoint
 };
