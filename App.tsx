@@ -5,6 +5,9 @@ import ClientCard from './components/ClientCard';
 import ClientFormModal from './components/ClientFormModal';
 import GenerationWorkflow from './components/GenerationWorkflow';
 import GBPPostCreator from './components/GBPPostCreator';
+import ErrorBoundary from './components/ErrorBoundary';
+import DebugPanel from './components/DebugPanel';
+import { logger, setupGlobalErrorHandling } from './utils/logger';
 import { PlusCircleIcon } from '@heroicons/react/24/solid';
 
 const App: React.FC = () => {
@@ -16,15 +19,36 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'blog' | 'gbp'>('gbp');
 
+  // Setup global error handling
+  useEffect(() => {
+    setupGlobalErrorHandling();
+    logger.componentMount('App', { activeTab });
+    
+    return () => {
+      logger.componentUnmount('App');
+    };
+  }, []);
+
   const loadClients = useCallback(() => {
+    logger.debug('Loading clients...');
     setIsLoading(true);
+    setError(null);
+    
     api.getClients()
       .then(data => {
-        setClients(data);
+        logger.debug('Clients loaded successfully', { count: data?.length || 0, data });
+        setClients(data || []);
         setError(null);
       })
-      .catch(() => setError('Failed to connect to the backend. Is the server running?'))
-      .finally(() => setIsLoading(false));
+      .catch((error) => {
+        logger.error('Failed to load clients', error);
+        setError('Failed to connect to the backend. Is the server running?');
+        setClients([]);
+      })
+      .finally(() => {
+        setIsLoading(false);
+        logger.debug('Client loading completed');
+      });
   }, []);
 
   useEffect(() => {
@@ -32,6 +56,7 @@ const App: React.FC = () => {
   }, [loadClients]);
 
   const handleSaveClient = (client: Client) => {
+    logger.debug('Client saved', { clientId: client.id, clientName: client.name });
     loadClients();
     if(selectedClient && selectedClient.id === client.id) {
         setSelectedClient(client);
@@ -39,26 +64,46 @@ const App: React.FC = () => {
   };
   
   const handleEdit = (client: Client) => {
+    logger.debug('Editing client', { clientId: client.id, clientName: client.name });
     setEditingClient(client);
     setIsModalOpen(true);
   };
 
   const handleAddNew = () => {
+    logger.debug('Adding new client');
     setEditingClient(null);
     setIsModalOpen(true);
   };
 
   const handleDelete = (id: string) => {
+    logger.debug('Deleting client', { clientId: id });
     api.deleteClient(id).then(() => {
+      logger.debug('Client deleted successfully', { clientId: id });
       loadClients();
       if(selectedClient && selectedClient.id === id) {
           setSelectedClient(null);
       }
+    }).catch((error) => {
+      logger.error('Failed to delete client', error, { clientId: id });
     });
   };
 
+  // Log state changes
+  useEffect(() => {
+    logger.stateChange('App', 'clients', null, clients);
+  }, [clients]);
+
+  useEffect(() => {
+    logger.stateChange('App', 'selectedClient', null, selectedClient);
+  }, [selectedClient]);
+
+  useEffect(() => {
+    logger.stateChange('App', 'activeTab', null, activeTab);
+  }, [activeTab]);
+
   return (
-    <div className="min-h-screen text-white p-4 sm:p-8 bg-slate-900 font-sans">
+    <ErrorBoundary>
+      <div className="min-h-screen text-white p-4 sm:p-8 bg-slate-900 font-sans">
       <header className="mb-8">
         <h1 className="text-4xl sm:text-5xl font-bold text-cyan-400">
           post<span className="text-slate-300">MONKEE</span>
@@ -147,7 +192,9 @@ const App: React.FC = () => {
           onSave={handleSaveClient}
         />
       )}
-    </div>
+      </div>
+      <DebugPanel />
+    </ErrorBoundary>
   );
 };
 
