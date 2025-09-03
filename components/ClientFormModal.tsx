@@ -116,7 +116,7 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
             <h3 className="text-lg font-semibold text-slate-300 pt-4 border-t border-slate-700">WordPress Details</h3>
             <InputField label="WordPress Site URL" name="wp.url" value={formData.wp?.url || ''} onChange={handleChange} type="url" />
             <InputField label="WordPress Username" name="wp.username" value={formData.wp?.username || ''} onChange={handleChange} />
-            <InputField label="WordPress App Password" name="wp.appPassword" value={formData.wp?.appPassword || ''} onChange={handleChange} type="password" />
+            <InputField label="WordPress App Password" name="wp.appPassword" value={formData.wp?.appPassword || ''} onChange={handleChange} type="password" autoComplete="current-password" />
             
             {/* GoHighLevel Test Button - only show if client exists and has location ID */}
             {client?.id && formData.ghlLocationId && (

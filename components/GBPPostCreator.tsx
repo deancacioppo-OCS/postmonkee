@@ -16,21 +16,13 @@ interface GBPPostPreview {
 }
 
 const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }) => {
+  // All hooks must be called at the top level
   const [topic, setTopic] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [preview, setPreview] = useState<GBPPostPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-
-  // Handle null client
-  if (!client) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-slate-400 text-lg">Please select a client to create Google Business Profile posts</p>
-      </div>
-    );
-  }
   
   // GoHighLevel Sub-Account Management
   const [showGHLSetup, setShowGHLSetup] = useState(false);
@@ -38,6 +30,15 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
   const [ghlSubAccountName, setGhlSubAccountName] = useState('');
   const [ghlAccessToken, setGhlAccessToken] = useState('');
   const [ghlSubAccounts, setGhlSubAccounts] = useState<GHLSubAccount[]>([]);
+
+  // Handle null client - moved after all hooks
+  if (!client) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-slate-400 text-lg">Please select a client to create Google Business Profile posts</p>
+      </div>
+    );
+  }
 
   const handleCreatePost = async () => {
     if (!topic.trim()) {
