@@ -3842,6 +3842,6 @@ getGHLSubAccountsEndpoint(app, pool);
 // Start server
 app.listen(port, () => {
   console.log(`postMONKEE backend listening at http://localhost:${port}`);
-  console.log('🔄 Database migration version: v3.0 - GBP posts and GoHighLevel integration');
+  console.log('🔄 Database migration version: v3.1 - GBP posts and GoHighLevel integration (Fixed)');
   initializeDb();
 });
