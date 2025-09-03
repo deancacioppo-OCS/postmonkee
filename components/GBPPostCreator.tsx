@@ -4,7 +4,7 @@ import { createGBPPost, saveGHLSubAccount, getGHLSubAccounts, GHLSubAccount } fr
 import { PlusCircleIcon, CalendarIcon, PhotoIcon, LinkIcon } from '@heroicons/react/24/solid';
 
 interface GBPPostCreatorProps {
-  client: Client;
+  client: Client | null;
   onPostCreated?: () => void;
 }
 
@@ -22,6 +22,15 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
   const [preview, setPreview] = useState<GBPPostPreview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Handle null client
+  if (!client) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-slate-400 text-lg">Please select a client to create Google Business Profile posts</p>
+      </div>
+    );
+  }
   
   // GoHighLevel Sub-Account Management
   const [showGHLSetup, setShowGHLSetup] = useState(false);
