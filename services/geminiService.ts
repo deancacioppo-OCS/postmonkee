@@ -182,3 +182,11 @@ export const saveGHLSubAccount = (clientId: string, locationId: string, subAccou
 export const getGHLSubAccounts = (clientId: string): Promise<{ success: boolean, subAccounts: GHLSubAccount[] }> => {
   return fetch(`${BASE_URL}/api/ghl/sub-accounts/${clientId}`).then(res => handleResponse<{ success: boolean, subAccounts: GHLSubAccount[] }>(res));
 };
+
+export const testGoHighLevelConnection = (clientId: string, locationId: string): Promise<{ success: boolean, location?: any, connectedAccounts?: any[], error?: string }> => {
+  return fetch(`${BASE_URL}/api/ghl/test-connection`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId, locationId }),
+  }).then(res => handleResponse<{ success: boolean, location?: any, connectedAccounts?: any[], error?: string }>(res));
+};

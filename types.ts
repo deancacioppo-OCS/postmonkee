@@ -10,6 +10,7 @@ export interface Client {
   wp: { url: string; username: string; appPassword?: string };
   sitemapUrls?: string[];
   usedTopics?: string[];
+  ghlLocationId?: string;
 }
 
 export interface BlogPost {

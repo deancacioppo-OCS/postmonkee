@@ -99,11 +99,30 @@ const ClientFormModal: React.FC<ClientFormModalProps> = ({ client, onClose, onSa
                 <WebsiteCrawlTestButton clientId={client.id} websiteUrl={formData.websiteUrl} />
             )}
 
+            <h3 className="text-lg font-semibold text-slate-300 pt-4 border-t border-slate-700">GoHighLevel Integration</h3>
+            <InputField 
+              label="GoHighLevel Location ID" 
+              name="ghlLocationId" 
+              value={formData.ghlLocationId || ''} 
+              onChange={handleChange} 
+              placeholder="e.g., abc123def456"
+            />
+            <div className="text-sm text-slate-400 p-3 bg-slate-700 rounded-md">
+              <p className="font-medium mb-2">🔗 GoHighLevel Location ID</p>
+              <p>This is the unique identifier for your GoHighLevel location where GBP posts will be scheduled. You can find this in your GoHighLevel dashboard under Settings → Locations.</p>
+              <p className="mt-2 text-xs text-cyan-400">💡 Tip: This is required for Google Business Profile post scheduling</p>
+            </div>
+
             <h3 className="text-lg font-semibold text-slate-300 pt-4 border-t border-slate-700">WordPress Details</h3>
             <InputField label="WordPress Site URL" name="wp.url" value={formData.wp?.url || ''} onChange={handleChange} type="url" />
             <InputField label="WordPress Username" name="wp.username" value={formData.wp?.username || ''} onChange={handleChange} />
             <InputField label="WordPress App Password" name="wp.appPassword" value={formData.wp?.appPassword || ''} onChange={handleChange} type="password" />
             
+            {/* GoHighLevel Test Button - only show if client exists and has location ID */}
+            {client?.id && formData.ghlLocationId && (
+                <GoHighLevelTestButton clientId={client.id} locationId={formData.ghlLocationId} />
+            )}
+
             {/* WordPress Test Button - only show if client exists and has WP credentials */}
             {client?.id && formData.wp?.url && formData.wp?.username && formData.wp?.appPassword && (
                 <WordPressTestButton clientId={client.id} />
@@ -343,6 +362,74 @@ const SitemapTestButton = ({ clientId, sitemapUrl }) => {
                             <p className="font-medium">❌ {testResult.error}</p>
                             {testResult.details && <p className="text-xs mt-1">{testResult.details}</p>}
                             {testResult.suggestion && <p className="text-xs mt-1 text-yellow-200">💡 {testResult.suggestion}</p>}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+// GoHighLevel Test Button Component
+const GoHighLevelTestButton = ({ clientId, locationId }) => {
+    const [testing, setTesting] = useState(false);
+    const [testResult, setTestResult] = useState(null);
+
+    const handleTest = async () => {
+        setTesting(true);
+        setTestResult(null);
+        try {
+            const result = await api.testGoHighLevelConnection(clientId, locationId);
+            setTestResult(result);
+        } catch (err) {
+            setTestResult({ 
+                success: false, 
+                error: 'GoHighLevel connection test failed', 
+                details: err.message 
+            });
+        } finally {
+            setTesting(false);
+        }
+    };
+
+    return (
+        <div className="p-3 bg-slate-700 rounded-md">
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-slate-300">Test GoHighLevel Connection</span>
+                <button
+                    type="button"
+                    onClick={handleTest}
+                    disabled={testing}
+                    className="bg-green-500 hover:bg-green-600 text-white text-sm py-1 px-3 rounded transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                    {testing && <Spinner small />}
+                    {testing ? 'Testing...' : 'Test Connection'}
+                </button>
+            </div>
+            
+            {testResult && (
+                <div className={`text-sm p-2 rounded ${testResult.success ? 'bg-green-800 text-green-200' : 'bg-red-800 text-red-200'}`}>
+                    {testResult.success ? (
+                        <div>
+                            <p className="font-medium">✓ GoHighLevel connection successful!</p>
+                            <p>Location: {testResult.location?.name || 'Unknown'}</p>
+                            <p>Location ID: {testResult.location?.id || locationId}</p>
+                            {testResult.connectedAccounts && (
+                                <p>Connected accounts: {testResult.connectedAccounts.length}</p>
+                            )}
+                        </div>
+                    ) : (
+                        <div>
+                            <p className="font-medium">✗ GoHighLevel connection failed</p>
+                            <p>{testResult.error}</p>
+                            {testResult.details && <p className="text-xs mt-1">{testResult.details}</p>}
+                            {testResult.suggestions && (
+                                <ul className="text-xs mt-2 list-disc list-inside">
+                                    {testResult.suggestions.map((suggestion, i) => (
+                                        <li key={i}>{suggestion}</li>
+                                    ))}
+                                </ul>
+                            )}
                         </div>
                     )}
                 </div>
