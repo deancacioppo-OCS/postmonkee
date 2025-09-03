@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Client } from '../types';
-import { createGBPPost, saveGHLSubAccount, getGHLSubAccounts, GHLSubAccount, testGBPEndpoint } from '../services/geminiService';
+import { createGBPPost, saveGHLSubAccount, getGHLSubAccounts, GHLSubAccount, testGBPEndpoint, testSimpleEndpoint } from '../services/geminiService';
 import { PlusCircleIcon, CalendarIcon, PhotoIcon, LinkIcon } from '@heroicons/react/24/solid';
 
 interface GBPPostCreatorProps {
@@ -63,6 +63,29 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
     } catch (err) {
       console.error('🧪 Test error:', err);
       setError(err instanceof Error ? err.message : 'Test error occurred');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const handleSimpleTest = async () => {
+    setIsCreating(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      console.log('🧪 Testing simple endpoint');
+      const result = await testSimpleEndpoint();
+      console.log('🧪 Simple test result:', result);
+      
+      if (result.success) {
+        setSuccess(`Simple test successful: ${result.message}`);
+      } else {
+        setError(`Simple test failed: ${result.error}`);
+      }
+    } catch (err) {
+      console.error('🧪 Simple test error:', err);
+      setError(err instanceof Error ? err.message : 'Simple test error occurred');
     } finally {
       setIsCreating(false);
     }
@@ -284,6 +307,14 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
             className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
             Test
+          </button>
+          
+          <button
+            onClick={handleSimpleTest}
+            disabled={isCreating}
+            className="px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            Simple
           </button>
         </div>
       </div>

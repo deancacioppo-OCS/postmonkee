@@ -129,3 +129,12 @@ export const testGBPEndpoint = (clientId: string, topic: string): Promise<{ succ
     body: JSON.stringify({ clientId, topic }),
   }).then(res => handleResponse<{ success: boolean, message?: string, data?: any, error?: string }>(res));
 };
+
+// Simple test endpoint
+export const testSimpleEndpoint = (): Promise<{ success: boolean, message?: string, error?: string }> => {
+  return fetch(`${BASE_URL}/api/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  }).then(res => handleResponse<{ success: boolean, message?: string, error?: string }>(res));
+};
