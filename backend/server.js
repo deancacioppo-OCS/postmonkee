@@ -309,6 +309,12 @@ manageGHLSubAccountsEndpoint(app, pool);
 getGHLSubAccountsEndpoint(app, pool);
 testGHLConnectionEndpoint(app, pool);
 
+// Simple test endpoint to verify server is working
+app.post('/api/test', (req, res) => {
+  console.log('🧪 Simple test endpoint called');
+  res.json({ success: true, message: 'Simple test endpoint working' });
+});
+
 // Start server
 app.listen(port, () => {
   console.log(`postMONKEE backend listening at http://localhost:${port}`);
