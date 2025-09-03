@@ -125,7 +125,9 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
     }
   };
 
-  const refreshGHLSubAccounts = async () => {
+  const refreshGHLSubAccounts = useCallback(async () => {
+    if (!client?.id) return;
+    
     try {
       console.log('🔄 Loading GHL sub-accounts...');
       const accounts = await getGHLSubAccounts(client.id);
@@ -135,9 +137,11 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
       console.error('❌ Error loading GHL sub-accounts:', error);
       setError('Failed to load GHL sub-accounts');
     }
-  };
+  }, [client?.id]);
 
-  const handleSaveGHLSubAccount = async () => {
+  const handleSaveGHLSubAccount = useCallback(async () => {
+    if (!client?.id) return;
+    
     try {
       console.log('💾 Saving GHL sub-account...');
       await saveGHLSubAccount(client.id, {
@@ -159,7 +163,7 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
       console.error('❌ Error saving GHL sub-account:', error);
       setError('Failed to save GHL sub-account');
     }
-  };
+  }, [client?.id, ghlSubAccountName, ghlLocationId, ghlAccessToken, refreshGHLSubAccounts]);
 
   // Load GHL sub-accounts when component mounts
   useEffect(() => {
