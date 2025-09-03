@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Client } from '../types';
 import { createGBPPost, saveGHLSubAccount, getGHLSubAccounts, GHLSubAccount } from '../services/geminiService';
 import { PlusCircleIcon, CalendarIcon, PhotoIcon, LinkIcon } from '@heroicons/react/24/solid';
@@ -103,7 +103,9 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
     }
   };
 
-  const loadGHLSubAccounts = async () => {
+  const loadGHLSubAccounts = useCallback(async () => {
+    if (!client?.id) return;
+    
     try {
       const result = await getGHLSubAccounts(client.id);
       if (result.success) {
@@ -112,11 +114,11 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
     } catch (err) {
       console.error('Failed to load GHL sub-accounts:', err);
     }
-  };
+  }, [client?.id]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     loadGHLSubAccounts();
-  }, [client.id]);
+  }, [loadGHLSubAccounts]);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
