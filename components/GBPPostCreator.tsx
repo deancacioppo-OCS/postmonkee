@@ -116,22 +116,8 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
     }
   };
 
-  useEffect(() => {
-    const loadGHLSubAccounts = async () => {
-      if (!client?.id) return;
-      
-      try {
-        const result = await getGHLSubAccounts(client.id);
-        if (result.success) {
-          setGhlSubAccounts(result.subAccounts);
-        }
-      } catch (err) {
-        console.error('Failed to load GHL sub-accounts:', err);
-      }
-    };
-
-    loadGHLSubAccounts();
-  }, [client?.id]);
+  // Temporarily removed useEffect to fix infinite re-render issue
+  // TODO: Re-implement GHL sub-accounts loading with proper dependency management
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
@@ -202,10 +188,18 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
       )}
 
       {/* Existing Sub-Accounts */}
-      {ghlSubAccounts.length > 0 && (
-        <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
-          <h3 className="text-lg font-semibold text-green-900 mb-2">Connected GoHighLevel Sub-Accounts</h3>
-          {ghlSubAccounts.map((account) => (
+      <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-lg font-semibold text-green-900">Connected GoHighLevel Sub-Accounts</h3>
+          <button
+            onClick={refreshGHLSubAccounts}
+            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+          >
+            Load Sub-Accounts
+          </button>
+        </div>
+        {ghlSubAccounts.length > 0 ? (
+          ghlSubAccounts.map((account) => (
             <div key={account.id} className="flex items-center justify-between py-2">
               <div>
                 <span className="font-medium">{account.sub_account_name || 'Unnamed Account'}</span>
@@ -217,9 +211,11 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
                 {account.is_active ? 'Active' : 'Inactive'}
               </span>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          <p className="text-gray-600 text-sm">No sub-accounts loaded. Click "Load Sub-Accounts" to refresh.</p>
+        )}
+      </div>
 
       {/* Post Creation Form */}
       <div className="space-y-4">
