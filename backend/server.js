@@ -3834,7 +3834,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
 });
 
 // ===== Register GoHighLevel API Endpoints =====
-createGBPPostEndpoint(app, pool, model, openai, axios);
+createGBPPostEndpoint(app, pool, ai, openai, axios);
 getGBPPostsEndpoint(app, pool);
 manageGHLSubAccountsEndpoint(app, pool);
 getGHLSubAccountsEndpoint(app, pool);

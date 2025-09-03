@@ -87,7 +87,7 @@ async function createSocialPost(locationId, postData, accessToken, axios) {
 }
 
 // Generate GBP-optimized content (200-400 characters)
-async function generateGBPContent(topic, businessInfo, model) {
+async function generateGBPContent(topic, businessInfo, ai) {
   try {
     console.log(`🤖 Generating GBP content for topic: "${topic}"`);
     
@@ -111,7 +111,7 @@ TOPIC: ${topic}
 
 Create a natural, engaging post that sounds like it was written by a real person, not AI. Focus on local relevance and community engagement.`;
 
-    const result = await model.generateContent(prompt);
+    const result = await ai.models.generateContent(prompt);
     const content = result.response.text().trim();
     
     // Validate character count
@@ -169,7 +169,7 @@ The image should look like a genuine photograph taken by a professional photogra
 }
 
 // API Endpoint: Create GBP Post
-function createGBPPostEndpoint(app, pool, model, openai, axios) {
+function createGBPPostEndpoint(app, pool, ai, openai, axios) {
   app.post('/api/gbp/create-post', async (req, res) => {
     try {
       const { clientId, topic, scheduledAt } = req.body;
@@ -214,7 +214,7 @@ function createGBPPostEndpoint(app, pool, model, openai, axios) {
 
       // Generate content and image in parallel
       const [content, imageResult] = await Promise.all([
-        generateGBPContent(topic, businessInfo, model),
+        generateGBPContent(topic, businessInfo, ai),
         generateGBPImage(topic, businessInfo, openai)
       ]);
 
