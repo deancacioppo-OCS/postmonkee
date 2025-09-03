@@ -1,7 +1,7 @@
 // This service now communicates with the backend, which securely proxies requests to the Gemini API.
 import { Client, BlogPlan } from '../types';
 
-const BASE_URL = import.meta.env.VITE_API_URL || 'https://blm-rmbc.onrender.com';
+const BASE_URL = import.meta.env.VITE_API_URL || 'https://postmonkee.onrender.com';
 
 async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
@@ -124,4 +124,55 @@ export const testSitemapParsing = (clientId: string, sitemapUrl: string): Promis
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId, sitemapUrl }),
     }).then(res => handleResponse<{ success: boolean, message: string, client: any, parsing: any, database: any, advantages: string[], error?: string, details?: string, suggestion?: string }>(res));
+};
+
+// ===== GoHighLevel and GBP Post API Functions =====
+
+export interface GBPPost {
+  id: number;
+  client_id: string;
+  content: string;
+  image_url?: string;
+  more_info_url?: string;
+  cta_text: string;
+  status: string;
+  scheduled_at?: string;
+  published_at?: string;
+  ghl_post_id?: string;
+  ghl_account_id?: string;
+  created_at: string;
+}
+
+export interface GHLSubAccount {
+  id: number;
+  client_id: string;
+  location_id: string;
+  sub_account_name?: string;
+  access_token: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export const createGBPPost = (clientId: string, topic: string, scheduledAt?: Date): Promise<{ success: boolean, post: GBPPost, message: string }> => {
+  return fetch(`${BASE_URL}/api/gbp/create-post`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId, topic, scheduledAt }),
+  }).then(res => handleResponse<{ success: boolean, post: GBPPost, message: string }>(res));
+};
+
+export const getGBPPosts = (clientId: string): Promise<{ success: boolean, posts: GBPPost[] }> => {
+  return fetch(`${BASE_URL}/api/gbp/posts/${clientId}`).then(res => handleResponse<{ success: boolean, posts: GBPPost[] }>(res));
+};
+
+export const saveGHLSubAccount = (clientId: string, locationId: string, subAccountName: string, accessToken: string): Promise<{ success: boolean, subAccount: GHLSubAccount, message: string }> => {
+  return fetch(`${BASE_URL}/api/ghl/sub-accounts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId, locationId, subAccountName, accessToken }),
+  }).then(res => handleResponse<{ success: boolean, subAccount: GHLSubAccount, message: string }>(res));
+};
+
+export const getGHLSubAccounts = (clientId: string): Promise<{ success: boolean, subAccounts: GHLSubAccount[] }> => {
+  return fetch(`${BASE_URL}/api/ghl/sub-accounts/${clientId}`).then(res => handleResponse<{ success: boolean, subAccounts: GHLSubAccount[] }>(res));
 };

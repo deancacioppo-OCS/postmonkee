@@ -10,6 +10,12 @@ import { Readable } from 'stream';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { parseString } from 'xml2js';
+import {
+  createGBPPostEndpoint,
+  getGBPPostsEndpoint,
+  manageGHLSubAccountsEndpoint,
+  getGHLSubAccountsEndpoint
+} from './ghl-integration.js';
 
 const { Pool } = pg;
 
@@ -204,6 +210,41 @@ async function initializeDb() {
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
       );
     `);
+
+    // Create gbp_posts table for Google Business Profile posts
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS gbp_posts (
+        id SERIAL PRIMARY KEY,
+        client_id TEXT NOT NULL,
+        content TEXT NOT NULL,
+        image_url VARCHAR(500),
+        more_info_url VARCHAR(500),
+        cta_text VARCHAR(100) DEFAULT 'Learn More',
+        status VARCHAR(50) DEFAULT 'draft',
+        scheduled_at TIMESTAMP WITH TIME ZONE,
+        published_at TIMESTAMP WITH TIME ZONE,
+        ghl_post_id VARCHAR(200),
+        ghl_account_id VARCHAR(200),
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
+      );
+    `);
+
+    // Create ghl_sub_accounts table for GoHighLevel sub-account management
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ghl_sub_accounts (
+        id SERIAL PRIMARY KEY,
+        client_id TEXT NOT NULL,
+        location_id VARCHAR(200) NOT NULL,
+        sub_account_name VARCHAR(200),
+        access_token TEXT,
+        is_active BOOLEAN DEFAULT true,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+        UNIQUE(client_id, location_id)
+      );
+    `);
+
     console.log('Database tables initialized successfully.');
   } catch (err) {
     console.error('Error initializing database tables:', err);
@@ -3792,10 +3833,15 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
     }
 });
 
+// ===== Register GoHighLevel API Endpoints =====
+createGBPPostEndpoint(app, pool, model, openai, axios);
+getGBPPostsEndpoint(app, pool);
+manageGHLSubAccountsEndpoint(app, pool);
+getGHLSubAccountsEndpoint(app, pool);
 
 // Start server
 app.listen(port, () => {
-  console.log(`Blog MONKEE backend listening at http://localhost:${port}`);
-  console.log('ðŸ”„ Database migration version: v2.0 - Enhanced crawling support');
+  console.log(`postMONKEE backend listening at http://localhost:${port}`);
+  console.log('🔄 Database migration version: v3.0 - GBP posts and GoHighLevel integration');
   initializeDb();
 });

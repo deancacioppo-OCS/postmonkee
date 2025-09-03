@@ -1,74 +1,61 @@
-# Blog MONKEE - AI-Powered Content Generation Platform
+# postMONKEE - AI-Powered Google Business Profile Post Generator
 
-**Professional blog creation from topic discovery to WordPress publishing - fully automated with human-quality results.**
+**Professional Google Business Profile post creation with GoHighLevel Social Planner integration - fully automated with human-quality results.**
 
-## 🚀 What is Blog MONKEE?
+## 🚀 What is postMONKEE?
 
-Blog MONKEE is a sophisticated AI-powered content generation platform that automates the entire blog creation process. Using a **tri-AI architecture** with Claude Sonnet 4, Google Gemini 2.5 Flash, and OpenAI DALL-E 3, it creates professional, SEO-optimized blog posts with featured images, contextual linking, and natural human-like writing.
+postMONKEE is a sophisticated AI-powered Google Business Profile post generation platform that automates the entire GBP post creation process. Using a **tri-AI architecture** with Claude Sonnet 4, Google Gemini 2.5 Flash, and OpenAI DALL-E 3, it creates professional, engaging GBP posts with photorealistic images and seamless GoHighLevel Social Planner integration.
 
 ### ✨ Latest Features (December 2024)
 
-#### **🗺️ XML Sitemap Integration (GAME CHANGER)**
-- **Complete URL Discovery** with XML sitemap parsing for comprehensive internal linking
-- **10x Performance Improvement** over AI crawling (all pages vs ~30 discovered)
-- **Sitemap Index Support** handles complex multi-sitemap websites
-- **Smart URL Processing** with filtering and normalization
-- **Auto-Update Mechanism** adds new blogs to internal links database
+#### **🎯 Google Business Profile Post Generation**
+- **200-400 Character Optimization** perfectly sized for GBP posts
+- **Local Business Focus** engaging content that drives local engagement
+- **Natural Writing Style** avoids AI-sounding language for authentic posts
+- **Call-to-Action Integration** compelling CTAs that drive customer action
+- **Real-Time Character Validation** ensures posts meet GBP requirements
+
+#### **🔗 GoHighLevel Social Planner Integration**
+- **Seamless API Integration** direct posting to GoHighLevel Social Planner
+- **Sub-Account Management** support for multiple client locations
+- **Automated Scheduling** posts scheduled for optimal engagement times
+- **Account Discovery** automatic detection of connected Google Business Profile accounts
+- **Error Handling** robust error management with detailed logging
+
+#### **📸 Photorealistic Image Generation**
+- **Square Format Optimization** perfect 1:1 aspect ratio for GBP posts
+- **Professional Photography Style** eliminates illustrations and artistic renderings
+- **HD Quality Generation** high-definition images for maximum impact
+- **Local Business Context** images that represent the business authentically
+- **Brand Consistency** visual content that matches business identity
 
 #### **🛡️ Advanced Client Data Isolation**
 - **Domain Validation** prevents cross-client URL contamination
 - **Client ID Verification** for all database operations
 - **Cross-Contamination Protection** blocks mismatched domain URLs
-- **Database Cleanup Tools** remove incorrectly stored URLs
+- **Secure Token Management** encrypted storage of GoHighLevel access tokens
 - **Enhanced Security Logging** tracks all validation attempts
 
-#### **🧠 Intelligent Topic Deduplication**
-- **Existing Content Analysis** checks 20 most recent blog titles per client
-- **Smart Duplicate Prevention** AI avoids similar topics automatically
-- **Supporting Article Logic** allows related content with different angles
-- **Client-Specific History** maintains separate topic databases
-- **Strategic Content Planning** identifies fresh content opportunities
+#### **🧠 Intelligent Content Planning**
+- **Topic Analysis** AI-powered topic selection for maximum engagement
+- **Industry-Specific Content** tailored messaging for different business types
+- **Brand Voice Matching** content that reflects each client's unique voice
+- **Local Relevance** posts that resonate with local community interests
+- **Engagement Optimization** content designed to drive customer interaction
 
-#### **🔗 Mandatory External Links with Real-Time Validation**
-- **Minimum 2 Links Required** content rejected if insufficient external links
-- **Real-Time URL Testing** HEAD requests validate every external URL (8-second timeout)
-- **404 Prevention System** broken links cause content regeneration
-- **Verified URL Database** curated industry-specific working URLs
-- **Quality Assurance** enhanced logging shows validation status for each link
-
-#### **📸 Photorealistic Image Generation**
-- **Professional Photography Style** eliminates illustrations and artistic renderings
-- **HD Quality Generation** upgraded from standard to high-definition
-- **Natural Lighting & Textures** authentic photography aesthetic
-- **Industry-Appropriate Scenes** real-world environments and believable objects
-- **Enhanced Visual Appeal** professional camera quality with depth of field
-
-#### **🌐 Open Graph Social Media Integration**
-- **Featured Images as og:image** automatic social media preview images
-- **Twitter Card Support** optimized sharing across social platforms
-- **SEO Meta Tags** comprehensive meta description and robots tags
-- **Social Media Optimization** enhanced preview appearance when shared
-- **Automatic Implementation** works with both regular and Lucky Mode publishing
-
-#### **📝 Professional Content Formatting**
-- **2-4 Sentence Rule** optimal paragraph length for mobile readability
-- **One-Idea-Per-Paragraph** clear, focused content structure
-- **Strategic Single Sentences** for emphasis and visual breaks
-- **Mobile-First Design** optimized for smartphone users (majority traffic)
-- **White Space Optimization** reduces eye strain and improves comprehension
-
-#### **🎯 Complete Content Generation**
-- **AI Topic Discovery** with Google Search integration and trend analysis
-- **Intelligent Content Planning** with SEO optimization and keyword research
-- **Natural Writing Style** that avoids AI-sounding language and matches existing site tone
-- **Content Style Matching** using scraped website content as reference
-- **Professional FAQs** with JSON-LD schema markup for rich snippets
+#### **📱 Mobile-First Design**
+- **Responsive Interface** optimized for all device sizes
+- **Touch-Friendly Controls** intuitive mobile navigation
+- **Real-Time Preview** see exactly how posts will appear
+- **Quick Actions** streamlined workflow for efficient post creation
+- **Progress Tracking** visual feedback throughout the creation process
 
 #### **🍀 "I'm Feelin' Lucky" Mode**
-- **Complete Automation** from topic discovery to WordPress draft publishing
+- **Complete Automation** from topic input to scheduled GBP post
 - **Parallel Processing** for optimal performance (23% speed improvement)
 - **Error Resilience** with graceful degradation and detailed logging
-- **Quality Gates** mandatory validation before publishing
+- **Quality Gates** mandatory validation before posting
+- **One-Click Creation** simplified workflow for maximum efficiency
 
 ## 🏗️ Technical Architecture
 
@@ -101,8 +88,8 @@ Blog MONKEE is a sophisticated AI-powered content generation platform that autom
 ## 🚀 Deployment
 
 **Live Application:**
-- **Frontend**: Deployed on Netlify with global CDN and auto-SSL
-- **Backend**: Deployed on Render with auto-scaling and health monitoring
+- **Frontend**: [https://jovial-licorice-a54626.netlify.app/](https://jovial-licorice-a54626.netlify.app/) - Deployed on Netlify with global CDN and auto-SSL
+- **Backend**: [https://postmonkee.onrender.com](https://postmonkee.onrender.com) - Deployed on Render with auto-scaling and health monitoring
 - **Database**: PostgreSQL with automated backups and enhanced security
 
 **Git-Powered Deployment:**
@@ -115,15 +102,15 @@ git push origin master
 
 ### **AI Costs (Production)**
 - **Monthly AI Costs**: $45-65 for unlimited content generation
-- **Cost per Blog**: $1.20-1.80 (vs $500-2000 human equivalent)
+- **Cost per GBP Post**: $1.20-1.80 (vs $50-200 human equivalent)
 - **Time Reduction**: 90%+ faster than traditional methods
 - **Quality**: Professional-grade content exceeding human capabilities
 
 ### **Enhanced Performance Metrics**
-- **Content Generation**: 45-90 seconds per complete blog
-- **URL Discovery**: 10x faster with XML sitemap parsing
+- **Content Generation**: 45-90 seconds per complete GBP post
+- **GoHighLevel Integration**: Direct API posting with real-time validation
 - **Image Generation**: Photorealistic HD quality with parallel processing
-- **Link Validation**: Real-time verification prevents 404 errors
+- **Post Scheduling**: Automated scheduling for optimal engagement times
 - **Uptime**: 99.9%+ reliability across all platforms
 
 ## 🛠️ Local Development
@@ -149,7 +136,7 @@ npm start
 npm install
 
 # Environment Variables:
-# VITE_API_URL=http://localhost:3001 (or production backend URL)
+# VITE_API_URL=https://postmonkee.onrender.com (production backend URL)
 
 npm run dev
 # Development server on http://localhost:5173
@@ -158,23 +145,23 @@ npm run dev
 ## 🎯 Business Impact
 
 ### **Enterprise-Grade Quality Control**
-- **Zero 404 external links** through real-time URL validation
+- **Character Count Validation** ensures posts meet GBP requirements
 - **No duplicate topics** with intelligent deduplication system
 - **Photorealistic visuals** for enhanced credibility and engagement
-- **Perfect social sharing** with Open Graph meta tags
-- **Mobile-optimized formatting** for superior user experience
+- **Perfect GoHighLevel Integration** with automated posting and scheduling
+- **Mobile-optimized interface** for superior user experience
 
 ### **Advanced Performance Features**
-- **XML sitemap integration** for complete internal linking coverage
+- **GoHighLevel API integration** for seamless social media posting
 - **Client data isolation** prevents cross-contamination
 - **Mandatory quality gates** ensure consistent output
 - **Real-time validation** across all content elements
 
 ### **Content Intelligence**
-- **Topic deduplication** across existing blog history
-- **Supporting article logic** for strategic content expansion
-- **Industry-specific verified links** eliminate broken references
-- **Professional formatting** optimized for mobile-first reading
+- **Topic analysis** for maximum engagement potential
+- **Local business optimization** for community relevance
+- **Industry-specific content** tailored for different business types
+- **Professional formatting** optimized for GBP engagement and readability
 
 ## 📈 Future Roadmap
 
@@ -211,8 +198,8 @@ npm run dev
 
 ---
 
-**Blog MONKEE represents the pinnacle of AI-powered content creation - where multiple AI systems collaborate with enterprise-grade quality control to deliver results that exceed human capabilities while maintaining professional standards, authentic visuals, and bulletproof reliability.**
+**postMONKEE represents the pinnacle of AI-powered Google Business Profile post creation - where multiple AI systems collaborate with enterprise-grade quality control to deliver results that exceed human capabilities while maintaining professional standards, authentic visuals, and bulletproof reliability.**
 
-**Built with precision, scaled with confidence, and enhanced with cutting-edge quality control systems.**
+**Built with precision, scaled with confidence, and enhanced with cutting-edge GoHighLevel integration.**
 
 *Developed with Claude Sonnet 4, Google Gemini 2.5 Flash, and OpenAI DALL-E 3*

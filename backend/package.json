@@ -1,7 +1,7 @@
 {
-  "name": "blog-monkee-backend",
+  "name": "postmonkee-backend",
   "version": "1.0.0",
-  "description": "Backend for Blog MONKEE",
+  "description": "Backend for postMONKEE - Google Business Profile Post Generator",
   "main": "server.js",
   "type": "module",
   "scripts": {

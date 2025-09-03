@@ -4,6 +4,7 @@ import * as api from './services/geminiService';
 import ClientCard from './components/ClientCard';
 import ClientFormModal from './components/ClientFormModal';
 import GenerationWorkflow from './components/GenerationWorkflow';
+import GBPPostCreator from './components/GBPPostCreator';
 import { PlusCircleIcon } from '@heroicons/react/24/solid';
 
 const App: React.FC = () => {
@@ -13,6 +14,7 @@ const App: React.FC = () => {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'blog' | 'gbp'>('gbp');
 
   const loadClients = useCallback(() => {
     setIsLoading(true);
@@ -59,9 +61,9 @@ const App: React.FC = () => {
     <div className="min-h-screen text-white p-4 sm:p-8 bg-slate-900 font-sans">
       <header className="mb-8">
         <h1 className="text-4xl sm:text-5xl font-bold text-cyan-400">
-          Blog <span className="text-slate-300">MONKEE</span>
+          post<span className="text-slate-300">MONKEE</span>
         </h1>
-        <p className="text-slate-400 mt-2">Your AI-Powered Content Generation Platform</p>
+        <p className="text-slate-400 mt-2">AI-Powered Google Business Profile Post Generator</p>
       </header>
 
       <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -96,7 +98,41 @@ const App: React.FC = () => {
         </div>
 
         <div className="bg-slate-800 p-6 rounded-lg shadow-lg">
-           <GenerationWorkflow client={selectedClient} />
+          {/* Tab Navigation */}
+          <div className="flex space-x-1 mb-6 bg-slate-700 p-1 rounded-lg">
+            <button
+              onClick={() => setActiveTab('gbp')}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'gbp'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-600'
+              }`}
+            >
+              Google Business Profile Posts
+            </button>
+            <button
+              onClick={() => setActiveTab('blog')}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
+                activeTab === 'blog'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-300 hover:text-white hover:bg-slate-600'
+              }`}
+            >
+              Blog Generation
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === 'gbp' ? (
+            <GBPPostCreator 
+              client={selectedClient} 
+              onPostCreated={() => {
+                // Optionally refresh data or show success message
+              }}
+            />
+          ) : (
+            <GenerationWorkflow client={selectedClient} />
+          )}
         </div>
       </main>
 
