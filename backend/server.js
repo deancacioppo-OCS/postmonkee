@@ -10,15 +10,15 @@ import { Readable } from 'stream';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { parseString } from 'xml2js';
-// Temporarily comment out ghl-integration imports to test deployment
-// import {
-//   createTestEndpoint,
-//   createGBPPostEndpoint,
-//   getGBPPostsEndpoint,
-//   manageGHLSubAccountsEndpoint,
-//   getGHLSubAccountsEndpoint,
-//   testGHLConnectionEndpoint
-// } from './ghl-integration.js';
+// Re-enable ghl-integration imports to test
+import {
+  createTestEndpoint,
+  createGBPPostEndpoint,
+  getGBPPostsEndpoint,
+  manageGHLSubAccountsEndpoint,
+  getGHLSubAccountsEndpoint,
+  testGHLConnectionEndpoint
+} from './ghl-integration.js';
 
 const { Pool } = pg;
 
@@ -303,13 +303,31 @@ app.delete('/api/clients/:id', async (req, res) => {
 });
 
 // ===== Register GoHighLevel API Endpoints =====
-// Temporarily comment out to test deployment
-// createTestEndpoint(app, pool, ai, openai, axios);
-// createGBPPostEndpoint(app, pool, ai, openai, axios);
-// getGBPPostsEndpoint(app, pool);
-// manageGHLSubAccountsEndpoint(app, pool);
-// getGHLSubAccountsEndpoint(app, pool);
-// testGHLConnectionEndpoint(app, pool);
+console.log('🔄 Registering ghl-integration endpoints...');
+try {
+  createTestEndpoint(app, pool, ai, openai, axios);
+  console.log('✅ createTestEndpoint registered');
+  
+  createGBPPostEndpoint(app, pool, ai, openai, axios);
+  console.log('✅ createGBPPostEndpoint registered');
+  
+  getGBPPostsEndpoint(app, pool);
+  console.log('✅ getGBPPostsEndpoint registered');
+  
+  manageGHLSubAccountsEndpoint(app, pool);
+  console.log('✅ manageGHLSubAccountsEndpoint registered');
+  
+  getGHLSubAccountsEndpoint(app, pool);
+  console.log('✅ getGHLSubAccountsEndpoint registered');
+  
+  testGHLConnectionEndpoint(app, pool);
+  console.log('✅ testGHLConnectionEndpoint registered');
+  
+  console.log('✅ All ghl-integration endpoints registered successfully');
+} catch (error) {
+  console.error('❌ Error registering ghl-integration endpoints:', error.message);
+  console.error('❌ Full error:', error);
+}
 
 // Simple test endpoint to verify server is working
 app.post('/api/test', (req, res) => {
