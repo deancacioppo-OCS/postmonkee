@@ -404,6 +404,59 @@ function getGHLSubAccountsEndpoint(app, pool) {
   });
 }
 
+// Test GoHighLevel connection endpoint
+export function testGHLConnectionEndpoint(app, pool) {
+  app.post('/api/ghl/test-connection', async (req, res) => {
+    const { clientId, locationId } = req.body;
+    
+    if (!clientId || !locationId) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Client ID and Location ID are required' 
+      });
+    }
+    
+    try {
+      // Get client info
+      const client = await pool.connect();
+      try {
+        const clientResult = await client.query('SELECT * FROM clients WHERE id = $1', [clientId]);
+        if (clientResult.rows.length === 0) {
+          return res.status(404).json({ 
+            success: false,
+            error: 'Client not found' 
+          });
+        }
+        
+        const clientData = clientResult.rows[0];
+        
+        // For now, just return success with the location ID
+        // In a real implementation, you would test the actual GHL API connection
+        res.json({
+          success: true,
+          location: {
+            id: locationId,
+            name: `${clientData.name} - Location ${locationId}`
+          },
+          connectedAccounts: [],
+          message: 'GoHighLevel connection test successful (mock response)'
+        });
+        
+      } finally {
+        client.release();
+      }
+      
+    } catch (error) {
+      console.error('❌ GHL connection test failed:', error.message);
+      res.status(500).json({ 
+        success: false,
+        error: 'Connection test failed',
+        details: error.message 
+      });
+    }
+  });
+}
+
 // Export all functions
 export {
   getGHLAccessToken,
@@ -414,5 +467,6 @@ export {
   createGBPPostEndpoint,
   getGBPPostsEndpoint,
   manageGHLSubAccountsEndpoint,
-  getGHLSubAccountsEndpoint
+  getGHLSubAccountsEndpoint,
+  testGHLConnectionEndpoint
 };

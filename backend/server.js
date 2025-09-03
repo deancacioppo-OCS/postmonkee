@@ -14,7 +14,8 @@ import {
   createGBPPostEndpoint,
   getGBPPostsEndpoint,
   manageGHLSubAccountsEndpoint,
-  getGHLSubAccountsEndpoint
+  getGHLSubAccountsEndpoint,
+  testGHLConnectionEndpoint
 } from './ghl-integration.js';
 
 const { Pool } = pg;
@@ -304,6 +305,7 @@ createGBPPostEndpoint(app, pool, ai, openai, axios);
 getGBPPostsEndpoint(app, pool);
 manageGHLSubAccountsEndpoint(app, pool);
 getGHLSubAccountsEndpoint(app, pool);
+testGHLConnectionEndpoint(app, pool);
 
 // Start server
 app.listen(port, () => {
