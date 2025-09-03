@@ -126,44 +126,14 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
   };
 
   const refreshGHLSubAccounts = async () => {
-    if (!client?.id) return;
-    
-    try {
-      const result = await getGHLSubAccounts(client.id);
-      if (result.success) {
-        setGhlSubAccounts(result.subAccounts);
-      }
-    } catch (err) {
-      console.error('Failed to load GHL sub-accounts:', err);
-    }
+    // Temporarily disabled for deployment testing
+    console.log('GHL sub-accounts loading temporarily disabled');
+    setError('GHL sub-accounts loading temporarily disabled for deployment testing');
   };
 
   const handleSaveGHLSubAccount = async () => {
-    if (!ghlLocationId || !ghlAccessToken) {
-      setError('Location ID and Access Token are required');
-      return;
-    }
-
-    try {
-      const result = await saveGHLSubAccount(
-        client.id,
-        ghlLocationId,
-        ghlSubAccountName || `${client.name} - GHL`,
-        ghlAccessToken
-      );
-      
-      if (result.success) {
-        setSuccess('GoHighLevel sub-account configured successfully!');
-        setShowGHLSetup(false);
-        setGhlLocationId('');
-        setGhlSubAccountName('');
-        setGhlAccessToken('');
-        // Refresh sub-accounts list
-        refreshGHLSubAccounts();
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save sub-account');
-    }
+    // Temporarily disabled for deployment testing
+    setError('GHL sub-account saving temporarily disabled for deployment testing');
   };
 
   // Temporarily removed useEffect to fix infinite re-render issue
