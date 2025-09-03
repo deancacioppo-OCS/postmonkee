@@ -3798,4 +3798,5 @@ app.listen(port, () => {
   console.log(`Blog MONKEE backend listening at http://localhost:${port}`);
   console.log('🔄 Database migration version: v2.0 - Enhanced crawling support');
   initializeDb();
-});
+});/ /   G H L   T e s t   E n d p o i n t  
+ 
