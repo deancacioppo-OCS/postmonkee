@@ -83,16 +83,20 @@ const App: React.FC = () => {
           {error && <div className="bg-red-800 border border-red-600 text-red-200 px-4 py-3 rounded-lg"><p className="font-bold">Error</p><p>{error}</p></div>}
           {!isLoading && !error && (
              <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2">
-              {clients.map(client => (
-                <ClientCard 
-                    key={client.id} 
-                    client={client} 
-                    onSelect={() => setSelectedClient(client)}
-                    onEdit={() => handleEdit(client)}
-                    onDelete={() => handleDelete(client.id)}
-                    isSelected={selectedClient?.id === client.id}
-                />
-              ))}
+              {clients && clients.length > 0 ? clients.map(client => (
+                client && client.id ? (
+                  <ClientCard 
+                      key={client.id} 
+                      client={client} 
+                      onSelect={() => setSelectedClient(client)}
+                      onEdit={() => handleEdit(client)}
+                      onDelete={() => handleDelete(client.id)}
+                      isSelected={selectedClient?.id === client.id}
+                  />
+                ) : null
+              )) : (
+                <p className="text-slate-400 text-center py-8">No clients found. Add your first client to get started!</p>
+              )}
             </div>
           )}
         </div>

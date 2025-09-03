@@ -13,7 +13,13 @@ async function handleResponse<T>(response: Response): Promise<T> {
 }
 
 export const getClients = (): Promise<Client[]> => {
-  return fetch(`${BASE_URL}/api/clients`).then(res => handleResponse<Client[]>(res));
+  return fetch(`${BASE_URL}/api/clients`)
+    .then(res => handleResponse<Client[]>(res))
+    .then(data => Array.isArray(data) ? data : [])
+    .catch(error => {
+      console.error('Failed to fetch clients:', error);
+      return [];
+    });
 };
 
 export const getClient = (id: string): Promise<Client> => {
