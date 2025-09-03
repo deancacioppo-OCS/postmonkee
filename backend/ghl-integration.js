@@ -97,6 +97,16 @@ async function generateGBPContent(topic, businessInfo, ai) {
       throw new Error('businessInfo is null or undefined');
     }
     
+    // Validate required properties
+    if (!businessInfo.name) {
+      throw new Error('businessInfo.name is null or undefined');
+    }
+    if (!businessInfo.industry) {
+      throw new Error('businessInfo.industry is null or undefined');
+    }
+    
+    console.log(`✅ Business info validation passed: ${businessInfo.name} - ${businessInfo.industry}`);
+    
     const prompt = `Create a Google Business Profile post for ${businessInfo.name} about "${topic}".
 
 REQUIREMENTS:
@@ -197,12 +207,17 @@ function createGBPPostEndpoint(app, pool, ai, openai, axios) {
       const client = await pool.connect();
       let businessInfo;
       try {
+        console.log(`🔍 Querying database for client: ${clientId}`);
         const result = await client.query('SELECT * FROM clients WHERE id = $1', [clientId]);
+        console.log(`📊 Database query result:`, result.rows);
+        
         if (result.rows.length === 0) {
           return res.status(404).json({ error: 'Client not found' });
         }
+        
         businessInfo = result.rows[0];
         console.log(`📊 Client found: ${businessInfo.name} (${businessInfo.industry})`);
+        console.log(`📊 Full client data:`, JSON.stringify(businessInfo, null, 2));
       } finally {
         client.release();
       }
