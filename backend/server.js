@@ -10,14 +10,15 @@ import { Readable } from 'stream';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { parseString } from 'xml2js';
-import {
-  createTestEndpoint,
-  createGBPPostEndpoint,
-  getGBPPostsEndpoint,
-  manageGHLSubAccountsEndpoint,
-  getGHLSubAccountsEndpoint,
-  testGHLConnectionEndpoint
-} from './ghl-integration.js';
+// Temporarily comment out ghl-integration imports to test deployment
+// import {
+//   createTestEndpoint,
+//   createGBPPostEndpoint,
+//   getGBPPostsEndpoint,
+//   manageGHLSubAccountsEndpoint,
+//   getGHLSubAccountsEndpoint,
+//   testGHLConnectionEndpoint
+// } from './ghl-integration.js';
 
 const { Pool } = pg;
 
@@ -302,12 +303,13 @@ app.delete('/api/clients/:id', async (req, res) => {
 });
 
 // ===== Register GoHighLevel API Endpoints =====
-createTestEndpoint(app, pool, ai, openai, axios);
-createGBPPostEndpoint(app, pool, ai, openai, axios);
-getGBPPostsEndpoint(app, pool);
-manageGHLSubAccountsEndpoint(app, pool);
-getGHLSubAccountsEndpoint(app, pool);
-testGHLConnectionEndpoint(app, pool);
+// Temporarily comment out to test deployment
+// createTestEndpoint(app, pool, ai, openai, axios);
+// createGBPPostEndpoint(app, pool, ai, openai, axios);
+// getGBPPostsEndpoint(app, pool);
+// manageGHLSubAccountsEndpoint(app, pool);
+// getGHLSubAccountsEndpoint(app, pool);
+// testGHLConnectionEndpoint(app, pool);
 
 // Simple test endpoint to verify server is working
 app.post('/api/test', (req, res) => {
