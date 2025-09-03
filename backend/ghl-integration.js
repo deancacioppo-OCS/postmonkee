@@ -90,6 +90,12 @@ async function createSocialPost(locationId, postData, accessToken, axios) {
 async function generateGBPContent(topic, businessInfo, ai) {
   try {
     console.log(`🤖 Generating GBP content for topic: "${topic}"`);
+    console.log(`📊 Business info received:`, JSON.stringify(businessInfo, null, 2));
+    
+    // Validate businessInfo
+    if (!businessInfo) {
+      throw new Error('businessInfo is null or undefined');
+    }
     
     const prompt = `Create a Google Business Profile post for ${businessInfo.name} about "${topic}".
 
@@ -132,6 +138,12 @@ Create a natural, engaging post that sounds like it was written by a real person
 async function generateGBPImage(content, businessInfo, openai) {
   try {
     console.log(`🖼️ Generating GBP image for: ${businessInfo.name}`);
+    console.log(`📊 Business info for image:`, JSON.stringify(businessInfo, null, 2));
+    
+    // Validate businessInfo
+    if (!businessInfo) {
+      throw new Error('businessInfo is null or undefined in generateGBPImage');
+    }
     
     const imagePrompt = `Create a photorealistic, professional image for a Google Business Profile post.
 
@@ -212,11 +224,9 @@ function createGBPPostEndpoint(app, pool, ai, openai, axios) {
         subAccountClient.release();
       }
 
-      // Generate content and image in parallel
-      const [content, imageResult] = await Promise.all([
-        generateGBPContent(topic, businessInfo, ai),
-        generateGBPImage(topic, businessInfo, openai)
-      ]);
+      // Generate content first, then image
+      const content = await generateGBPContent(topic, businessInfo, ai);
+      const imageResult = await generateGBPImage(content, businessInfo, openai);
 
       // Create "more info" landing page URL (simplified for now)
       const moreInfoUrl = `${businessInfo.websiteUrl || 'https://example.com'}/learn-more`;
