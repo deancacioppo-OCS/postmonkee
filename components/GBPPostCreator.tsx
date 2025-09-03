@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Client } from '../types';
-import { createGBPPost, saveGHLSubAccount, getGHLSubAccounts, GHLSubAccount } from '../services/geminiService';
+import { createGBPPost, saveGHLSubAccount, getGHLSubAccounts, GHLSubAccount, testGBPEndpoint } from '../services/geminiService';
 import { PlusCircleIcon, CalendarIcon, PhotoIcon, LinkIcon } from '@heroicons/react/24/solid';
 
 interface GBPPostCreatorProps {
@@ -39,6 +39,34 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
       </div>
     );
   }
+
+  const handleTestEndpoint = async () => {
+    if (!topic.trim()) {
+      setError('Please enter a topic for your GBP post');
+      return;
+    }
+
+    setIsCreating(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      console.log('🧪 Testing endpoint with:', { clientId: client.id, topic });
+      const result = await testGBPEndpoint(client.id, topic);
+      console.log('🧪 Test result:', result);
+      
+      if (result.success) {
+        setSuccess(`Test successful: ${result.message}`);
+      } else {
+        setError(`Test failed: ${result.error}`);
+      }
+    } catch (err) {
+      console.error('🧪 Test error:', err);
+      setError(err instanceof Error ? err.message : 'Test error occurred');
+    } finally {
+      setIsCreating(false);
+    }
+  };
 
   const handleCreatePost = async () => {
     if (!topic.trim()) {
@@ -231,23 +259,33 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
           />
         </div>
 
-        <button
-          onClick={handleCreatePost}
-          disabled={isCreating || !topic.trim()}
-          className="w-full flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-        >
-          {isCreating ? (
-            <>
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-              Generating Content...
-            </>
-          ) : (
-            <>
-              <PlusCircleIcon className="w-5 h-5 mr-2" />
-              Generate GBP Content
-            </>
-          )}
-        </button>
+        <div className="flex space-x-2">
+          <button
+            onClick={handleCreatePost}
+            disabled={isCreating || !topic.trim()}
+            className="flex-1 flex items-center justify-center px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            {isCreating ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                Generating Content...
+              </>
+            ) : (
+              <>
+                <PlusCircleIcon className="w-5 h-5 mr-2" />
+                Generate GBP Content
+              </>
+            )}
+          </button>
+          
+          <button
+            onClick={handleTestEndpoint}
+            disabled={isCreating || !topic.trim()}
+            className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+          >
+            Test
+          </button>
+        </div>
       </div>
 
       {/* Error/Success Messages */}

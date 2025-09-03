@@ -120,3 +120,12 @@ export const testGoHighLevelConnection = (clientId: string, locationId: string):
     body: JSON.stringify({ clientId, locationId }),
   }).then(res => handleResponse<{ success: boolean, location?: any, connectedAccounts?: any[], error?: string }>(res));
 };
+
+// Test endpoint to isolate the error
+export const testGBPEndpoint = (clientId: string, topic: string): Promise<{ success: boolean, message?: string, data?: any, error?: string }> => {
+  return fetch(`${BASE_URL}/api/gbp/test`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId, topic }),
+  }).then(res => handleResponse<{ success: boolean, message?: string, data?: any, error?: string }>(res));
+};

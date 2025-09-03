@@ -191,6 +191,32 @@ The image should look like a genuine photograph taken by a professional photogra
 }
 
 // API Endpoint: Create GBP Post
+// Minimal test endpoint to isolate the error
+function createTestEndpoint(app, pool, ai, openai, axios) {
+  app.post('/api/gbp/test', async (req, res) => {
+    try {
+      console.log('🧪 Test endpoint called');
+      const { clientId, topic } = req.body;
+      
+      console.log('📊 Request data:', { clientId, topic });
+      
+      // Test 1: Basic response
+      res.json({
+        success: true,
+        message: 'Test endpoint working',
+        data: { clientId, topic }
+      });
+      
+    } catch (error) {
+      console.error('❌ Test endpoint error:', error.message);
+      res.status(500).json({ 
+        error: 'Test endpoint failed',
+        details: error.message 
+      });
+    }
+  });
+}
+
 // Phase 1: Simplified GBP Post Creation (Content Only)
 function createGBPPostEndpoint(app, pool, ai, openai, axios) {
   app.post('/api/gbp/create-post', async (req, res) => {
@@ -435,6 +461,7 @@ export {
   createSocialPost,
   generateGBPContent,
   generateGBPImage,
+  createTestEndpoint,
   createGBPPostEndpoint,
   getGBPPostsEndpoint,
   manageGHLSubAccountsEndpoint,

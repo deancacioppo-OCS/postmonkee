@@ -11,6 +11,7 @@ import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { parseString } from 'xml2js';
 import {
+  createTestEndpoint,
   createGBPPostEndpoint,
   getGBPPostsEndpoint,
   manageGHLSubAccountsEndpoint,
@@ -301,6 +302,7 @@ app.delete('/api/clients/:id', async (req, res) => {
 });
 
 // ===== Register GoHighLevel API Endpoints =====
+createTestEndpoint(app, pool, ai, openai, axios);
 createGBPPostEndpoint(app, pool, ai, openai, axios);
 getGBPPostsEndpoint(app, pool);
 manageGHLSubAccountsEndpoint(app, pool);
