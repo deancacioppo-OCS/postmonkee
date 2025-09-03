@@ -75,6 +75,19 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
     }
   };
 
+  const refreshGHLSubAccounts = async () => {
+    if (!client?.id) return;
+    
+    try {
+      const result = await getGHLSubAccounts(client.id);
+      if (result.success) {
+        setGhlSubAccounts(result.subAccounts);
+      }
+    } catch (err) {
+      console.error('Failed to load GHL sub-accounts:', err);
+    }
+  };
+
   const handleSaveGHLSubAccount = async () => {
     if (!ghlLocationId || !ghlAccessToken) {
       setError('Location ID and Access Token are required');
@@ -96,29 +109,29 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
         setGhlSubAccountName('');
         setGhlAccessToken('');
         // Refresh sub-accounts list
-        loadGHLSubAccounts();
+        refreshGHLSubAccounts();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save sub-account');
     }
   };
 
-  const loadGHLSubAccounts = useCallback(async () => {
-    if (!client?.id) return;
-    
-    try {
-      const result = await getGHLSubAccounts(client.id);
-      if (result.success) {
-        setGhlSubAccounts(result.subAccounts);
-      }
-    } catch (err) {
-      console.error('Failed to load GHL sub-accounts:', err);
-    }
-  }, [client?.id]);
-
   useEffect(() => {
+    const loadGHLSubAccounts = async () => {
+      if (!client?.id) return;
+      
+      try {
+        const result = await getGHLSubAccounts(client.id);
+        if (result.success) {
+          setGhlSubAccounts(result.subAccounts);
+        }
+      } catch (err) {
+        console.error('Failed to load GHL sub-accounts:', err);
+      }
+    };
+
     loadGHLSubAccounts();
-  }, [loadGHLSubAccounts]);
+  }, [client?.id]);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
