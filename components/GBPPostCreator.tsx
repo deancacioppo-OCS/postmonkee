@@ -126,18 +126,47 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
   };
 
   const refreshGHLSubAccounts = async () => {
-    // Temporarily disabled for deployment testing
-    console.log('GHL sub-accounts loading temporarily disabled');
-    setError('GHL sub-accounts loading temporarily disabled for deployment testing');
+    try {
+      console.log('🔄 Loading GHL sub-accounts...');
+      const accounts = await getGHLSubAccounts(client.id);
+      setGhlSubAccounts(accounts);
+      console.log('✅ GHL sub-accounts loaded:', accounts);
+    } catch (error) {
+      console.error('❌ Error loading GHL sub-accounts:', error);
+      setError('Failed to load GHL sub-accounts');
+    }
   };
 
   const handleSaveGHLSubAccount = async () => {
-    // Temporarily disabled for deployment testing
-    setError('GHL sub-account saving temporarily disabled for deployment testing');
+    try {
+      console.log('💾 Saving GHL sub-account...');
+      await saveGHLSubAccount(client.id, {
+        name: ghlSubAccountName,
+        locationId: ghlLocationId,
+        accessToken: ghlAccessToken
+      });
+      
+      // Clear form
+      setGhlSubAccountName('');
+      setGhlLocationId('');
+      setGhlAccessToken('');
+      
+      // Refresh the list
+      await refreshGHLSubAccounts();
+      
+      setSuccess('GHL sub-account saved successfully!');
+    } catch (error) {
+      console.error('❌ Error saving GHL sub-account:', error);
+      setError('Failed to save GHL sub-account');
+    }
   };
 
-  // Temporarily removed useEffect to fix infinite re-render issue
-  // TODO: Re-implement GHL sub-accounts loading with proper dependency management
+  // Load GHL sub-accounts when component mounts
+  useEffect(() => {
+    if (client?.id) {
+      refreshGHLSubAccounts();
+    }
+  }, [client?.id]);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
