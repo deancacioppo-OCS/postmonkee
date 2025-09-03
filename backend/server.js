@@ -1,4 +1,4 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
 import { GoogleGenAI, Type } from "@google/genai";
 import crypto from 'crypto';
@@ -53,9 +53,9 @@ async function initializeDb() {
       
       if (columnCheck.rows.length === 0) {
         await client.query(`ALTER TABLE clients ADD COLUMN "sitemapUrl" TEXT;`);
-        console.log('✓ sitemapUrl column added');
+        console.log('âœ“ sitemapUrl column added');
       } else {
-        console.log('✓ sitemapUrl column already exists');
+        console.log('âœ“ sitemapUrl column already exists');
       }
     } catch (alterError) {
       console.log('Note: Could not add sitemapUrl column:', alterError.message);
@@ -124,12 +124,12 @@ async function initializeDb() {
         
         if (columnCheck.rows.length === 0) {
           await client.query(`ALTER TABLE sitemap_urls ADD COLUMN ${column.name} ${column.type};`);
-          console.log(`✓ Added column '${column.name}' to sitemap_urls table`);
+          console.log(`âœ“ Added column '${column.name}' to sitemap_urls table`);
         } else {
-          console.log(`✓ Column '${column.name}' already exists in sitemap_urls table`);
+          console.log(`âœ“ Column '${column.name}' already exists in sitemap_urls table`);
         }
       } catch (alterError) {
-        console.log(`❌ Could not add column '${column.name}':`, alterError.message);
+        console.log(`âŒ Could not add column '${column.name}':`, alterError.message);
       }
     }
 
@@ -149,14 +149,14 @@ async function initializeDb() {
     
     // If we're still missing critical columns, recreate the table
     if (missingColumns.length > 0) {
-      console.log('⚠️ Critical columns still missing. Recreating sitemap_urls table...');
+      console.log('âš ï¸ Critical columns still missing. Recreating sitemap_urls table...');
       
       // Backup existing data if any
       let backupData = [];
       try {
         const backup = await client.query('SELECT client_id, url FROM sitemap_urls');
         backupData = backup.rows;
-        console.log(`📦 Backed up ${backupData.length} existing URLs`);
+        console.log(`ðŸ“¦ Backed up ${backupData.length} existing URLs`);
       } catch (backupError) {
         console.log('No existing data to backup');
       }
@@ -191,9 +191,9 @@ async function initializeDb() {
         }
       }
       
-      console.log('✅ Successfully recreated sitemap_urls table with all columns');
+      console.log('âœ… Successfully recreated sitemap_urls table with all columns');
     } else {
-      console.log('✅ All required columns are present in sitemap_urls table');
+      console.log('âœ… All required columns are present in sitemap_urls table');
     }
     // Create used_topics table
     await client.query(`
@@ -239,15 +239,15 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 let openai = null;
 try {
     if (!process.env.OPENAI_API_KEY) {
-        console.warn('⚠️ OPENAI_API_KEY not set - image generation will be disabled');
+        console.warn('âš ï¸ OPENAI_API_KEY not set - image generation will be disabled');
     } else {
         openai = new OpenAI({
             apiKey: process.env.OPENAI_API_KEY
         });
-        console.log('✅ OpenAI initialized successfully for image generation');
+        console.log('âœ… OpenAI initialized successfully for image generation');
     }
 } catch (error) {
-    console.error('❌ Failed to initialize OpenAI:', error.message);
+    console.error('âŒ Failed to initialize OpenAI:', error.message);
 }
 
 // --- Helper Functions ---
@@ -326,18 +326,18 @@ function generateOpenGraphTags(title, description, imageUrl, pageUrl, clientName
 // REVOLUTIONARY: Real-time page discovery for intelligent deep linking
 async function discoverRelevantPages(rootDomain, topic, industry) {
     try {
-        console.log(`🔍 Starting real-time page discovery on ${rootDomain} for topic: "${topic}"`);
+        console.log(`ðŸ” Starting real-time page discovery on ${rootDomain} for topic: "${topic}"`);
         
         // Step 1: Crawl the external site to discover pages
         const crawledPages = await crawlExternalSite(rootDomain, topic, industry);
         
         if (crawledPages.length === 0) {
-            console.log(`⚠️ No pages discovered on ${rootDomain}, using root domain`);
+            console.log(`âš ï¸ No pages discovered on ${rootDomain}, using root domain`);
             return [];
         }
         
         // Step 2: AI analyzes discovered pages for topic relevance
-        console.log(`🧠 AI analyzing ${crawledPages.length} discovered pages for relevance to "${topic}"`);
+        console.log(`ðŸ§  AI analyzing ${crawledPages.length} discovered pages for relevance to "${topic}"`);
         
         const relevancePrompt = `Analyze these pages from ${rootDomain} and identify the 2-3 most relevant to the topic "${topic}" in the ${industry} industry:
 
@@ -381,7 +381,7 @@ If no pages are highly relevant to "${topic}", return an empty list.`;
         });
         
         const relevanceData = JSON.parse(relevanceResponse.text);
-        console.log(`🎯 AI found ${relevanceData.relevantUrls.length} relevant pages: ${relevanceData.reasoning}`);
+        console.log(`ðŸŽ¯ AI found ${relevanceData.relevantUrls.length} relevant pages: ${relevanceData.reasoning}`);
         
         // Step 3: Validate discovered relevant pages
         const validatedDeepLinks = [];
@@ -390,20 +390,20 @@ If no pages are highly relevant to "${topic}", return an empty list.`;
                 const isValid = await validateUrlExists(url);
                 if (isValid) {
                     validatedDeepLinks.push(url);
-                    console.log(`✅ Validated deep link: ${url}`);
+                    console.log(`âœ… Validated deep link: ${url}`);
                 } else {
-                    console.log(`❌ Invalid deep link: ${url}`);
+                    console.log(`âŒ Invalid deep link: ${url}`);
                 }
             } catch (validationError) {
-                console.log(`⚠️ Deep link validation failed: ${url}`);
+                console.log(`âš ï¸ Deep link validation failed: ${url}`);
             }
         }
         
-        console.log(`🎉 Real-time discovery complete: ${validatedDeepLinks.length} validated deep links from ${rootDomain}`);
+        console.log(`ðŸŽ‰ Real-time discovery complete: ${validatedDeepLinks.length} validated deep links from ${rootDomain}`);
         return validatedDeepLinks;
         
     } catch (error) {
-        console.error(`❌ Real-time page discovery failed for ${rootDomain}:`, error.message);
+        console.error(`âŒ Real-time page discovery failed for ${rootDomain}:`, error.message);
         return []; // Return empty array, will fallback to root domain
     }
 }
@@ -411,7 +411,7 @@ If no pages are highly relevant to "${topic}", return an empty list.`;
 // Helper function to crawl external site and discover pages
 async function crawlExternalSite(rootDomain, topic, industry) {
     try {
-        console.log(`🕷️ Crawling ${rootDomain} to discover pages...`);
+        console.log(`ðŸ•·ï¸ Crawling ${rootDomain} to discover pages...`);
         
         // Fetch the main page
         const response = await axios.get(rootDomain, {
@@ -469,13 +469,13 @@ async function crawlExternalSite(rootDomain, topic, industry) {
             });
         });
         
-        console.log(`📄 Discovered ${discoveredPages.length} pages on ${rootDomain}`);
+        console.log(`ðŸ“„ Discovered ${discoveredPages.length} pages on ${rootDomain}`);
         
         // Enhanced page analysis for better content previews
         const enhancedPages = [];
         for (const page of discoveredPages.slice(0, 8)) { // Analyze top 8 pages
             try {
-                console.log(`📖 Analyzing page content: ${page.url}`);
+                console.log(`ðŸ“– Analyzing page content: ${page.url}`);
                 const pageResponse = await axios.get(page.url, {
                     timeout: 8000,
                     headers: {
@@ -497,10 +497,10 @@ async function crawlExternalSite(rootDomain, topic, industry) {
                     contentPreview: firstParagraph
                 });
                 
-                console.log(`✅ Analyzed: ${pageTitle} - ${metaDescription.substring(0, 50)}...`);
+                console.log(`âœ… Analyzed: ${pageTitle} - ${metaDescription.substring(0, 50)}...`);
                 
             } catch (pageError) {
-                console.log(`⚠️ Failed to analyze page ${page.url}: ${pageError.message}`);
+                console.log(`âš ï¸ Failed to analyze page ${page.url}: ${pageError.message}`);
                 // Use basic page info if detailed analysis fails
                 enhancedPages.push(page);
             }
@@ -509,19 +509,19 @@ async function crawlExternalSite(rootDomain, topic, industry) {
         return enhancedPages;
         
     } catch (crawlError) {
-        console.error(`❌ External site crawling failed for ${rootDomain}:`, crawlError.message);
+        console.error(`âŒ External site crawling failed for ${rootDomain}:`, crawlError.message);
         return [];
     }
 }
 
 // Helper function to generate image in parallel using DALL-E 3
 async function generateFeaturedImage(title, industry) {
-    console.log(`🖼️ Starting parallel DALL-E 3 image generation for "${title}"`);
+    console.log(`ðŸ–¼ï¸ Starting parallel DALL-E 3 image generation for "${title}"`);
     
     // Check if OpenAI is available
     if (!openai) {
-        console.warn(`⚠️ OpenAI not initialized - skipping image generation for "${title}"`);
-        console.warn('💡 Please set OPENAI_API_KEY environment variable in Render dashboard');
+        console.warn(`âš ï¸ OpenAI not initialized - skipping image generation for "${title}"`);
+        console.warn('ðŸ’¡ Please set OPENAI_API_KEY environment variable in Render dashboard');
         return null;
     }
     
@@ -590,7 +590,7 @@ The image should look like a genuine photograph taken by a professional photogra
         // Generate SEO-friendly ALT text that describes the visual content
         const altText = `Professional ${industry} featured image visually representing "${title}" through symbolic imagery and modern design elements, no text overlay`;
         
-        console.log(`✅ DALL-E 3 image generation completed for "${title}"`);
+        console.log(`âœ… DALL-E 3 image generation completed for "${title}"`);
         
         return {
             imageBase64,
@@ -600,24 +600,24 @@ The image should look like a genuine photograph taken by a professional photogra
         };
         
     } catch (error) {
-        console.error(`❌ DALL-E 3 image generation failed for "${title}":`, error.message);
+        console.error(`âŒ DALL-E 3 image generation failed for "${title}":`, error.message);
         throw error;
     }
 }
 
 async function uploadImageToWordPress(imageBase64, filename, altText, client) {
-    console.log(`📤 Starting WordPress image upload: ${filename}`);
+    console.log(`ðŸ“¤ Starting WordPress image upload: ${filename}`);
     
     try {
         // Convert base64 to buffer
         const imageBuffer = Buffer.from(imageBase64, 'base64');
-        console.log(`📊 Image buffer size: ${imageBuffer.length} bytes`);
+        console.log(`ðŸ“Š Image buffer size: ${imageBuffer.length} bytes`);
         
         // Use direct binary upload (more reliable than FormData for WordPress)
         const uploadUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/media`;
         
-        console.log(`🔗 Upload URL: ${uploadUrl}`);
-        console.log(`📋 Using direct binary upload method (not FormData)`);
+        console.log(`ðŸ”— Upload URL: ${uploadUrl}`);
+        console.log(`ðŸ“‹ Using direct binary upload method (not FormData)`);
         
         const uploadResponse = await fetch(uploadUrl, {
             method: 'POST',
@@ -630,16 +630,16 @@ async function uploadImageToWordPress(imageBase64, filename, altText, client) {
             body: imageBuffer  // Send raw buffer directly
         });
         
-        console.log(`📊 Upload response status: ${uploadResponse.status}`);
+        console.log(`ðŸ“Š Upload response status: ${uploadResponse.status}`);
         
         if (!uploadResponse.ok) {
             const errorText = await uploadResponse.text();
-            console.error(`❌ WordPress upload error response:`, errorText);
+            console.error(`âŒ WordPress upload error response:`, errorText);
             throw new Error(`WordPress media upload failed: ${uploadResponse.status} - ${errorText}`);
         }
         
         const mediaData = await uploadResponse.json();
-        console.log(`✅ WordPress upload successful:`, {
+        console.log(`âœ… WordPress upload successful:`, {
             id: mediaData.id,
             url: mediaData.source_url,
             title: mediaData.title?.rendered
@@ -692,7 +692,7 @@ function validateInternalLinks(content, validLinks) {
         }
     }
     
-    console.log(`📊 Found ${internalLinks.length} internal links`);
+    console.log(`ðŸ“Š Found ${internalLinks.length} internal links`);
     
     // Check for invalid URLs
     const invalidLinks = internalLinks.filter(link => !validUrls.includes(link.url));
@@ -716,36 +716,36 @@ function validateInternalLinks(content, validLinks) {
         else if (isDuplicate) status = '[DUPLICATE]';
         else if (isHomepage) status = '[HOMEPAGE LINK - AVOID]';
         
-        console.log(`🔗 Internal Link ${index + 1}: "${link.anchorText}" → ${link.url} ${status}`);
+        console.log(`ðŸ”— Internal Link ${index + 1}: "${link.anchorText}" â†’ ${link.url} ${status}`);
         
         if (isHomepage) {
-            console.warn(`⚠️ Homepage link detected: "${link.anchorText}" → ${link.url}`);
-            console.warn(`💡 Avoid linking to homepage unless absolutely necessary`);
+            console.warn(`âš ï¸ Homepage link detected: "${link.anchorText}" â†’ ${link.url}`);
+            console.warn(`ðŸ’¡ Avoid linking to homepage unless absolutely necessary`);
         }
     });
     
     // Provide warnings and feedback
     if (duplicateUrls.length > 0) {
-        console.warn(`⚠️ Duplicate internal links found - multiple links to same URLs:`, duplicateUrls);
-        console.warn(`💡 Rule: Maximum ONE internal link per target page/blog`);
+        console.warn(`âš ï¸ Duplicate internal links found - multiple links to same URLs:`, duplicateUrls);
+        console.warn(`ðŸ’¡ Rule: Maximum ONE internal link per target page/blog`);
     }
     
     if (invalidLinks.length > 0) {
-        console.error('❌ Invalid internal links found:', invalidLinks.map(l => l.url));
-        console.log('✅ Valid internal links available:', validUrls);
+        console.error('âŒ Invalid internal links found:', invalidLinks.map(l => l.url));
+        console.log('âœ… Valid internal links available:', validUrls);
     }
     
     if (internalLinks.length < 2) {
-        console.warn(`⚠️ Only ${internalLinks.length} internal links found - should be 2-6 contextually relevant links`);
+        console.warn(`âš ï¸ Only ${internalLinks.length} internal links found - should be 2-6 contextually relevant links`);
     } else if (internalLinks.length > 6) {
-        console.warn(`⚠️ ${internalLinks.length} internal links found - maximum should be 6 to avoid over-linking`);
+        console.warn(`âš ï¸ ${internalLinks.length} internal links found - maximum should be 6 to avoid over-linking`);
     }
     
     const hasErrors = invalidLinks.length > 0;
     const hasWarnings = duplicateUrls.length > 0;
     
     if (!hasErrors && !hasWarnings) {
-        console.log('✅ All internal links are valid and follow best practices');
+        console.log('âœ… All internal links are valid and follow best practices');
     }
     
     return {
@@ -920,11 +920,11 @@ function getIndustryAuthoritativeSources(industry) {
 // Helper function to replace URL templates with actual URLs (Option 2: Template-Based)
 function replaceUrlTemplatesWithReal(content, validLinks) {
     if (!validLinks || validLinks.length === 0) {
-        console.log('🔗 No valid links available for template replacement');
+        console.log('ðŸ”— No valid links available for template replacement');
         return content;
     }
     
-    console.log('🔧 Starting template-based URL replacement...');
+    console.log('ðŸ”§ Starting template-based URL replacement...');
     let processedContent = content;
     let replacements = [];
     
@@ -941,18 +941,18 @@ function replaceUrlTemplatesWithReal(content, validLinks) {
                 title: link.title,
                 count: linkCount
             });
-            console.log(`🔄 REPLACED: "${template}" → "${link.url}" (${linkCount} times) for "${link.title}"`);
+            console.log(`ðŸ”„ REPLACED: "${template}" â†’ "${link.url}" (${linkCount} times) for "${link.title}"`);
         }
     });
     
-    console.log(`🎯 Template Replacement Summary: ${replacements.length} templates replaced`);
+    console.log(`ðŸŽ¯ Template Replacement Summary: ${replacements.length} templates replaced`);
     return processedContent;
 }
 
 // ENHANCED: Real-time URL validation to prevent 404 errors
 async function validateUrlExists(url) {
     try {
-        console.log(`🔍 Validating URL: ${url}`);
+        console.log(`ðŸ” Validating URL: ${url}`);
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 8000);
         
@@ -966,18 +966,18 @@ async function validateUrlExists(url) {
         
         clearTimeout(timeoutId);
         const isValid = response.ok && response.status < 400;
-        console.log(`${isValid ? '✅' : '❌'} URL validation: ${url} → ${response.status}`);
+        console.log(`${isValid ? 'âœ…' : 'âŒ'} URL validation: ${url} â†’ ${response.status}`);
         return isValid;
         
     } catch (error) {
-        console.log(`❌ URL validation failed: ${url} → ${error.message}`);
+        console.log(`âŒ URL validation failed: ${url} â†’ ${error.message}`);
         return false;
     }
 }
 
 // MANDATORY: Validate external links with real-time URL checking
 async function validateExternalLinks(content) {
-    console.log('🔗 Validating external links in content...');
+    console.log('ðŸ”— Validating external links in content...');
     
     // Extract external links with target="_blank"
     const externalLinkRegex = /<a\s+[^>]*href\s*=\s*["']([^"']+)["'][^>]*target\s*=\s*["']_blank["'][^>]*>(.*?)<\/a>/gi;
@@ -992,24 +992,24 @@ async function validateExternalLinks(content) {
         if (url.includes('http://') || url.includes('https://')) {
             externalLinks.push({ url, anchorText });
         } else {
-            console.log(`⚠️ Invalid external link found: ${url}`);
+            console.log(`âš ï¸ Invalid external link found: ${url}`);
         }
     }
     
-    console.log(`📊 Found ${externalLinks.length} external links`);
+    console.log(`ðŸ“Š Found ${externalLinks.length} external links`);
     
     // MANDATORY: Require minimum 2 external links
     if (externalLinks.length < 2) {
-        console.error(`❌ MANDATORY EXTERNAL LINKS MISSING: Only ${externalLinks.length} external links found - MINIMUM 2 required`);
+        console.error(`âŒ MANDATORY EXTERNAL LINKS MISSING: Only ${externalLinks.length} external links found - MINIMUM 2 required`);
         throw new Error(`Content validation failed: Must include at least 2 external links, found only ${externalLinks.length}`);
     } else if (externalLinks.length > 8) {
-        console.warn(`⚠️ ${externalLinks.length} external links found - maximum should be 8`);
+        console.warn(`âš ï¸ ${externalLinks.length} external links found - maximum should be 8`);
     } else {
-        console.log(`✅ External link count is optimal: ${externalLinks.length} links`);
+        console.log(`âœ… External link count is optimal: ${externalLinks.length} links`);
     }
     
     // Real-time URL validation for all external links
-    console.log('🌐 Starting real-time URL validation...');
+    console.log('ðŸŒ Starting real-time URL validation...');
     const validationResults = [];
     
     for (const link of externalLinks) {
@@ -1021,16 +1021,16 @@ async function validateExternalLinks(content) {
         });
         
         if (!isValid) {
-            console.error(`❌ BROKEN LINK DETECTED: "${link.anchorText}" → ${link.url}`);
+            console.error(`âŒ BROKEN LINK DETECTED: "${link.anchorText}" â†’ ${link.url}`);
         }
     }
     
     // Check if any links are broken
     const brokenLinks = validationResults.filter(result => !result.isValid);
     if (brokenLinks.length > 0) {
-        console.error(`❌ CONTENT VALIDATION FAILED: ${brokenLinks.length} broken external links detected`);
+        console.error(`âŒ CONTENT VALIDATION FAILED: ${brokenLinks.length} broken external links detected`);
         brokenLinks.forEach(link => {
-            console.error(`   💔 Broken: "${link.anchorText}" → ${link.url}`);
+            console.error(`   ðŸ’” Broken: "${link.anchorText}" â†’ ${link.url}`);
         });
         throw new Error(`Content validation failed: ${brokenLinks.length} external links are broken or inaccessible`);
     }
@@ -1057,19 +1057,19 @@ async function validateExternalLinks(content) {
             linkQuality = 'Other source (verify legitimacy)';
         }
         
-        const validationStatus = result.isValid ? '[WORKING ✅]' : '[BROKEN ❌]';
-        console.log(`🔗 External Link ${index + 1}: "${result.anchorText}" → ${result.url} [${linkQuality}] ${validationStatus}`);
+        const validationStatus = result.isValid ? '[WORKING âœ…]' : '[BROKEN âŒ]';
+        console.log(`ðŸ”— External Link ${index + 1}: "${result.anchorText}" â†’ ${result.url} [${linkQuality}] ${validationStatus}`);
     });
     
     // Warn about Wikipedia overuse
     if (wikipediaCount > 1) {
-        console.warn(`⚠️ Too many Wikipedia links (${wikipediaCount}) - Wikipedia should be last resort only`);
-        console.warn(`💡 Prioritize industry-specific authoritative sources instead`);
+        console.warn(`âš ï¸ Too many Wikipedia links (${wikipediaCount}) - Wikipedia should be last resort only`);
+        console.warn(`ðŸ’¡ Prioritize industry-specific authoritative sources instead`);
     } else if (wikipediaCount === 1 && externalLinks.length <= 3) {
-        console.warn(`⚠️ Wikipedia used but better industry sources may be available`);
+        console.warn(`âš ï¸ Wikipedia used but better industry sources may be available`);
     }
     
-    console.log(`✅ All ${externalLinks.length} external links validated and working`);
+    console.log(`âœ… All ${externalLinks.length} external links validated and working`);
     return externalLinks;
 }
 
@@ -1089,7 +1089,7 @@ async function generateUniqueTopicForClient(clientId, client) {
             LIMIT 20
         `, [clientId]);
         
-        console.log(`📚 Found ${existingTopics.rows.length} existing blog topics for deduplication check`);
+        console.log(`ðŸ“š Found ${existingTopics.rows.length} existing blog topics for deduplication check`);
         
         // Create context of existing topics for Gemini
         const existingTopicsContext = existingTopics.rows.length > 0 
@@ -1099,9 +1099,9 @@ async function generateUniqueTopicForClient(clientId, client) {
                 `${index + 1}. "${blog.title}" (${blog.url})`
             ).join('\n')}
             
-            🚫 DO NOT choose topics that are too similar to the above existing blogs.
+            ðŸš« DO NOT choose topics that are too similar to the above existing blogs.
             
-            ✅ EXCEPTIONS - You MAY choose a related topic if it's a SUPPORTING article that:
+            âœ… EXCEPTIONS - You MAY choose a related topic if it's a SUPPORTING article that:
             - Provides a completely different angle or perspective
             - Goes deeper into a specific sub-topic or aspect
             - Addresses a different audience segment (beginners vs experts)
@@ -1126,10 +1126,10 @@ async function generateUniqueTopicForClient(clientId, client) {
         const topic = response.text.trim();
         const sources = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
         
-        console.log(`✅ Generated unique topic: "${topic}" (avoiding ${existingTopics.rows.length} existing topics)`);
+        console.log(`âœ… Generated unique topic: "${topic}" (avoiding ${existingTopics.rows.length} existing topics)`);
 
         // REVOLUTIONARY: Extract and validate Google Search URLs for topic-specific external links
-        console.log(`🔍 Processing ${sources.length} Google Search sources for real-time external links`);
+        console.log(`ðŸ” Processing ${sources.length} Google Search sources for real-time external links`);
         const topicalUrls = [];
 
         for (const source of sources) {
@@ -1138,7 +1138,7 @@ async function generateUniqueTopicForClient(clientId, client) {
                 
                 // CRITICAL FIX: Filter out Google redirect URLs that expire
                 if (url.includes('grounding-api-redirect') || url.includes('vertexaisearch.cloud.google.com')) {
-                    console.log(`🚫 Skipping Google redirect URL: ${url.substring(0, 80)}...`);
+                    console.log(`ðŸš« Skipping Google redirect URL: ${url.substring(0, 80)}...`);
                     continue;
                 }
                 
@@ -1164,19 +1164,19 @@ async function generateUniqueTopicForClient(clientId, client) {
                         );
                         
                         topicalUrls.push({ url, domain, authorityScore });
-                        console.log(`✅ Validated topical link: ${url} [Authority: ${authorityScore}]`);
+                        console.log(`âœ… Validated topical link: ${url} [Authority: ${authorityScore}]`);
                     } else {
-                        console.log(`❌ Invalid topical link: ${url}`);
+                        console.log(`âŒ Invalid topical link: ${url}`);
                     }
                 } catch (error) {
-                    console.log(`⚠️ Error validating topical URL ${url}:`, error.message);
+                    console.log(`âš ï¸ Error validating topical URL ${url}:`, error.message);
                 }
             }
         }
 
         // Sort by authority score
         topicalUrls.sort((a, b) => b.authorityScore - a.authorityScore);
-        console.log(`🎯 Real-time topical external links: ${topicalUrls.length} validated URLs stored`);
+        console.log(`ðŸŽ¯ Real-time topical external links: ${topicalUrls.length} validated URLs stored`);
 
         return { 
             topic, 
@@ -1198,10 +1198,10 @@ async function validateClientOwnership(clientId, operation) {
         if (client.rows.length === 0) {
             throw new Error(`Invalid client ID: ${clientId}`);
         }
-        console.log(`✅ ${operation} validated for client: ${client.rows[0].name} (${clientId})`);
+        console.log(`âœ… ${operation} validated for client: ${client.rows[0].name} (${clientId})`);
         return client.rows[0];
     } catch (error) {
-        console.error(`❌ Client validation failed for ${operation}:`, error.message);
+        console.error(`âŒ Client validation failed for ${operation}:`, error.message);
         throw error;
     }
 }
@@ -1212,14 +1212,14 @@ async function validateUrlDomain(clientId, url, clientInfo = null) {
         if (!clientInfo) {
             const result = await pool.query('SELECT "websiteUrl", name FROM clients WHERE id = $1', [clientId]);
             if (result.rows.length === 0) {
-                console.error(`❌ Client not found for domain validation: ${clientId}`);
+                console.error(`âŒ Client not found for domain validation: ${clientId}`);
                 return false;
             }
             clientInfo = result.rows[0];
         }
         
         if (!clientInfo.websiteUrl) {
-            console.warn(`⚠️ No website URL configured for client ${clientInfo.name}, skipping domain validation`);
+            console.warn(`âš ï¸ No website URL configured for client ${clientInfo.name}, skipping domain validation`);
             return true; // Allow if no domain configured
         }
         
@@ -1227,15 +1227,15 @@ async function validateUrlDomain(clientId, url, clientInfo = null) {
         const urlDomain = new URL(url).hostname.toLowerCase();
         
         if (clientDomain !== urlDomain) {
-            console.error(`🚨 DOMAIN MISMATCH BLOCKED: Client "${clientInfo.name}" (${clientDomain}) attempted to store URL from ${urlDomain}: ${url}`);
+            console.error(`ðŸš¨ DOMAIN MISMATCH BLOCKED: Client "${clientInfo.name}" (${clientDomain}) attempted to store URL from ${urlDomain}: ${url}`);
             return false;
         }
         
-        console.log(`✅ Domain validation passed: ${urlDomain} matches client ${clientInfo.name}`);
+        console.log(`âœ… Domain validation passed: ${urlDomain} matches client ${clientInfo.name}`);
         return true;
         
     } catch (error) {
-        console.error(`❌ Domain validation error:`, error.message);
+        console.error(`âŒ Domain validation error:`, error.message);
         return false; // Fail safe - reject on error
     }
 }
@@ -1249,7 +1249,7 @@ async function addBlogToSitemapDatabase(clientId, blogUrl, title, description = 
         // CRITICAL: Validate domain to prevent cross-client contamination
         const domainValid = await validateUrlDomain(clientId, blogUrl, clientInfo);
         if (!domainValid) {
-            console.error(`🚨 BLOCKED: Attempted to add URL from wrong domain to client ${clientInfo.name}: ${blogUrl}`);
+            console.error(`ðŸš¨ BLOCKED: Attempted to add URL from wrong domain to client ${clientInfo.name}: ${blogUrl}`);
             return false;
         }
         
@@ -1273,11 +1273,11 @@ async function addBlogToSitemapDatabase(clientId, blogUrl, title, description = 
             [clientId, relativePath, title, description, 'blog']
         );
         
-        console.log(`✅ Auto-update: Added "${title}" to sitemap database at ${relativePath} for client ${clientInfo.name}`);
+        console.log(`âœ… Auto-update: Added "${title}" to sitemap database at ${relativePath} for client ${clientInfo.name}`);
         return true;
         
     } catch (error) {
-        console.error('❌ Failed to auto-update sitemap database:', error.message);
+        console.error('âŒ Failed to auto-update sitemap database:', error.message);
         return false;
     }
 }
@@ -1285,7 +1285,7 @@ async function addBlogToSitemapDatabase(clientId, blogUrl, title, description = 
 // NEW: XML Sitemap Parser Function - Much faster and more comprehensive than AI crawling
 async function parseXMLSitemapForClient(clientId, sitemapUrl) {
     try {
-        console.log(`🗺️ PARSING XML SITEMAP: Fetching sitemap from ${sitemapUrl}`);
+        console.log(`ðŸ—ºï¸ PARSING XML SITEMAP: Fetching sitemap from ${sitemapUrl}`);
         
         // Fetch the XML sitemap
         const response = await axios.get(sitemapUrl, {
@@ -1295,7 +1295,7 @@ async function parseXMLSitemapForClient(clientId, sitemapUrl) {
             }
         });
         
-        console.log(`📄 Sitemap fetched: ${response.data.length} characters`);
+        console.log(`ðŸ“„ Sitemap fetched: ${response.data.length} characters`);
         
         // Parse XML using xml2js
         const parseXML = (xmlData) => {
@@ -1315,12 +1315,12 @@ async function parseXMLSitemapForClient(clientId, sitemapUrl) {
             urls = parsedXML.urlset.url;
         } else if (parsedXML.sitemapindex && parsedXML.sitemapindex.sitemap) {
             // Handle sitemap index - parse each individual sitemap
-            console.log(`🗂️ Found sitemap index with ${parsedXML.sitemapindex.sitemap.length} sitemaps`);
+            console.log(`ðŸ—‚ï¸ Found sitemap index with ${parsedXML.sitemapindex.sitemap.length} sitemaps`);
             
             for (const sitemap of parsedXML.sitemapindex.sitemap) {
                 try {
                     const subSitemapUrl = sitemap.loc[0];
-                    console.log(`📋 Parsing sub-sitemap: ${subSitemapUrl}`);
+                    console.log(`ðŸ“‹ Parsing sub-sitemap: ${subSitemapUrl}`);
                     
                     const subResponse = await axios.get(subSitemapUrl, {
                         timeout: 15000,
@@ -1334,12 +1334,12 @@ async function parseXMLSitemapForClient(clientId, sitemapUrl) {
                         urls = urls.concat(subParsedXML.urlset.url);
                     }
                 } catch (subError) {
-                    console.warn(`⚠️ Failed to parse sub-sitemap: ${subError.message}`);
+                    console.warn(`âš ï¸ Failed to parse sub-sitemap: ${subError.message}`);
                 }
             }
         }
         
-        console.log(`🔍 Found ${urls.length} URLs in sitemap(s)`);
+        console.log(`ðŸ” Found ${urls.length} URLs in sitemap(s)`);
         
         // Process and store URLs
         const processedUrls = [];
@@ -1390,7 +1390,7 @@ async function parseXMLSitemapForClient(clientId, sitemapUrl) {
                 // CRITICAL: Validate domain before storing
                 const domainValid = await validateUrlDomain(clientId, fullUrl);
                 if (!domainValid) {
-                    console.warn(`🚨 BLOCKED: Skipping cross-domain URL in sitemap: ${fullUrl}`);
+                    console.warn(`ðŸš¨ BLOCKED: Skipping cross-domain URL in sitemap: ${fullUrl}`);
                     skipped++;
                     continue;
                 }
@@ -1416,16 +1416,16 @@ async function parseXMLSitemapForClient(clientId, sitemapUrl) {
                 stored++;
                 
             } catch (urlError) {
-                console.warn(`⚠️ Error processing URL: ${urlError.message}`);
+                console.warn(`âš ï¸ Error processing URL: ${urlError.message}`);
                 skipped++;
             }
         }
         
-        console.log(`✅ XML SITEMAP PARSING COMPLETE:`);
-        console.log(`   📊 Total URLs found: ${urls.length}`);
-        console.log(`   💾 URLs stored: ${stored}`);
-        console.log(`   ⏭️ URLs skipped: ${skipped}`);
-        console.log(`   ⚡ Performance: Much faster than AI crawling!`);
+        console.log(`âœ… XML SITEMAP PARSING COMPLETE:`);
+        console.log(`   ðŸ“Š Total URLs found: ${urls.length}`);
+        console.log(`   ðŸ’¾ URLs stored: ${stored}`);
+        console.log(`   â­ï¸ URLs skipped: ${skipped}`);
+        console.log(`   âš¡ Performance: Much faster than AI crawling!`);
         
         return {
             success: true,
@@ -1436,7 +1436,7 @@ async function parseXMLSitemapForClient(clientId, sitemapUrl) {
         };
         
     } catch (error) {
-        console.error(`❌ XML Sitemap parsing failed for ${sitemapUrl}:`, error.message);
+        console.error(`âŒ XML Sitemap parsing failed for ${sitemapUrl}:`, error.message);
         throw error;
     }
 }
@@ -1444,7 +1444,7 @@ async function parseXMLSitemapForClient(clientId, sitemapUrl) {
 // LEGACY: AI-based crawling function (keeping for fallback)
 async function crawlWebsiteForClient(clientId, websiteUrl) {
     try {
-        console.log(`🕷️ REAL CRAWLING: Fetching actual website content for ${websiteUrl}`);
+        console.log(`ðŸ•·ï¸ REAL CRAWLING: Fetching actual website content for ${websiteUrl}`);
         
         // Actually fetch the website HTML
         const response = await axios.get(websiteUrl, {
@@ -1517,17 +1517,17 @@ async function crawlWebsiteForClient(clientId, websiteUrl) {
             .filter(page => page.url !== '/' || crawledPages.length < 5) // Keep homepage only if we have few pages
             .slice(0, 30);
         
-        console.log(`🎯 REAL CRAWL RESULTS: Found ${filteredPages.length} actual pages on ${websiteUrl}`);
+        console.log(`ðŸŽ¯ REAL CRAWL RESULTS: Found ${filteredPages.length} actual pages on ${websiteUrl}`);
         
         // Store the real crawled pages directly (they're already cleaned)
-        console.log('📋 Storing actual website URLs in database');
+        console.log('ðŸ“‹ Storing actual website URLs in database');
         
         // Clear existing URLs for this client first
         await pool.query('DELETE FROM sitemap_urls WHERE client_id = $1', [clientId]);
         
         // Store the crawled pages in the database
         for (const page of filteredPages) {
-            console.log(`✅ Storing real URL: ${page.url} - "${page.title}"`);
+            console.log(`âœ… Storing real URL: ${page.url} - "${page.title}"`);
             try {
                 await pool.query(
                     'INSERT INTO sitemap_urls (client_id, url, title, description, category, last_modified) VALUES ($1, $2, $3, $4, $5, NOW()) ON CONFLICT (client_id, url) DO UPDATE SET title = $3, description = $4, category = $5, last_modified = NOW()',
@@ -1538,12 +1538,12 @@ async function crawlWebsiteForClient(clientId, websiteUrl) {
             }
         }
         
-        console.log(`✅ REAL CRAWL SUCCESS: Stored ${filteredPages.length} actual URLs for client ${clientId}`);
+        console.log(`âœ… REAL CRAWL SUCCESS: Stored ${filteredPages.length} actual URLs for client ${clientId}`);
         return filteredPages.length;
         
     } catch (error) {
-        console.error('❌ Error in real website crawling:', error);
-        console.error('🔧 Falling back to basic page structure...');
+        console.error('âŒ Error in real website crawling:', error);
+        console.error('ðŸ”§ Falling back to basic page structure...');
         
         // Fallback: create basic page structure
         const fallbackPages = [
@@ -1567,7 +1567,7 @@ async function crawlWebsiteForClient(clientId, websiteUrl) {
             }
         }
         
-        console.log(`⚠️ FALLBACK: Stored ${fallbackPages.length} basic URLs for client ${clientId}`);
+        console.log(`âš ï¸ FALLBACK: Stored ${fallbackPages.length} basic URLs for client ${clientId}`);
         return fallbackPages.length;
     }
 }
@@ -2004,7 +2004,7 @@ app.post('/api/generate/content', async (req, res) => {
                     Keywords: ${link.keywords || 'N/A'}
                `).join('\n')}
                
-               🚨 CRITICAL LINKING RULES: 
+               ðŸš¨ CRITICAL LINKING RULES: 
                - Use EXACT templates shown above: {{LINK_1}}, {{LINK_2}}, etc.
                - Format: <a href="{{LINK_1}}">descriptive anchor text</a>
                - Maximum ONE use per template - NO EXCEPTIONS
@@ -2049,13 +2049,13 @@ app.post('/api/generate/content', async (req, res) => {
             - Use bulleted lists when appropriate instead of long paragraphs
             
             PARAGRAPH EXAMPLES:
-            ✅ GOOD (2-4 sentences, one idea):
+            âœ… GOOD (2-4 sentences, one idea):
             "Good SEO helps potential customers find you through search engines. It involves optimizing your site's structure, content, and authority. By ranking higher for relevant keywords, you attract qualified traffic. This leads to more leads and sales for your business."
             
-            ❌ BAD (wall of text):
+            âŒ BAD (wall of text):
             "Good SEO is the practice of helping potential customers find you through search engines because it involves optimizing your site's structure, content, and overall authority so that you can rank higher for the keywords that people are searching for..."
             
-            ✅ SINGLE-SENTENCE PARAGRAPH for emphasis:
+            âœ… SINGLE-SENTENCE PARAGRAPH for emphasis:
             "This is the key point that changes everything."
             
             Remember: Mobile users will see longer paragraphs as intimidating blocks of text.
@@ -2104,7 +2104,7 @@ app.post('/api/generate/content', async (req, res) => {
         const contentData = JSON.parse(response.text);
         
         // Apply template-based URL replacement
-        console.log('🔧 Applying template-based URL replacement...');
+        console.log('ðŸ”§ Applying template-based URL replacement...');
         contentData.content = replaceUrlTemplatesWithReal(contentData.content, internalLinks);
         
         // Validate internal links in generated content
@@ -2288,10 +2288,10 @@ app.post('/api/publish/wordpress', async (req, res) => {
                     );
                     
                     enhancedContent = openGraphTags + content;
-                    console.log(`🌐 Added Open Graph meta tags with featured image: ${imageUrl}`);
+                    console.log(`ðŸŒ Added Open Graph meta tags with featured image: ${imageUrl}`);
                 }
             } catch (ogError) {
-                console.warn('⚠️ Failed to add Open Graph tags:', ogError.message);
+                console.warn('âš ï¸ Failed to add Open Graph tags:', ogError.message);
             }
         }
 
@@ -2307,9 +2307,9 @@ app.post('/api/publish/wordpress', async (req, res) => {
 
         // Create WordPress post using REST API
         // Enhanced WordPress API call with WordFence compatibility
-        console.log('📝 Creating WordPress post...');
-        console.log('🔗 WordPress API URL:', wpApiUrl);
-        console.log('📊 Post data:', { 
+        console.log('ðŸ“ Creating WordPress post...');
+        console.log('ðŸ”— WordPress API URL:', wpApiUrl);
+        console.log('ðŸ“Š Post data:', { 
             title: postData.title, 
             contentLength: postData.content.length, 
             status: postData.status,
@@ -2325,8 +2325,8 @@ app.post('/api/publish/wordpress', async (req, res) => {
             body: JSON.stringify(postData)
         });
         
-        console.log('📊 WordPress API response status:', wpResponse.status);
-        console.log('📋 WordPress API response headers:', Object.fromEntries(wpResponse.headers.entries()));
+        console.log('ðŸ“Š WordPress API response status:', wpResponse.status);
+        console.log('ðŸ“‹ WordPress API response headers:', Object.fromEntries(wpResponse.headers.entries()));
 
         console.log('WordPress API response status:', wpResponse.status);
 
@@ -2489,7 +2489,7 @@ app.get('/api/debug/internal-links/:clientId', async (req, res) => {
 // Clean up existing database URLs that may have absolute URLs
 app.post('/api/admin/cleanup-urls', async (req, res) => {
     try {
-        console.log('🧹 Starting database URL cleanup...');
+        console.log('ðŸ§¹ Starting database URL cleanup...');
         
         // Get all URLs that need cleaning (contain http or are WordPress posts)
         const result = await pool.query(`
@@ -2512,7 +2512,7 @@ app.post('/api/admin/cleanup-urls', async (req, res) => {
                     const urlObj = new URL(cleanUrl);
                     cleanUrl = urlObj.pathname;
                 } catch (e) {
-                    console.log(`❌ Removing invalid URL: ${cleanUrl}`);
+                    console.log(`âŒ Removing invalid URL: ${cleanUrl}`);
                     await pool.query('DELETE FROM sitemap_urls WHERE client_id = $1 AND url = $2', [row.client_id, row.url]);
                     removed++;
                     continue;
@@ -2530,7 +2530,7 @@ app.post('/api/admin/cleanup-urls', async (req, res) => {
                     'UPDATE sitemap_urls SET url = $1 WHERE client_id = $2 AND url = $3',
                     [cleanUrl, row.client_id, row.url]
                 );
-                console.log(`🔧 Cleaned: ${row.url} → ${cleanUrl}`);
+                console.log(`ðŸ”§ Cleaned: ${row.url} â†’ ${cleanUrl}`);
                 cleaned++;
             }
         }
@@ -2564,7 +2564,7 @@ app.post('/api/test/sitemap', async (req, res) => {
         // CRITICAL: Validate client ownership first
         const clientInfo = await validateClientOwnership(clientId, 'Sitemap Test');
         
-        console.log(`🗺️ Testing XML sitemap parsing for client ${clientInfo.name}: ${sitemapUrl}`);
+        console.log(`ðŸ—ºï¸ Testing XML sitemap parsing for client ${clientInfo.name}: ${sitemapUrl}`);
         
         // CRITICAL: Validate sitemap domain matches client domain
         const domainValid = await validateUrlDomain(clientId, sitemapUrl, clientInfo);
@@ -2615,13 +2615,13 @@ app.post('/api/test/sitemap', async (req, res) => {
                     lastModified: row.last_modified
                 }))
             },
-            message: `🚀 XML sitemap parsing SUCCESS! Found ${parseResult.totalFound} URLs, stored ${parseResult.stored}. Database now has ${existingUrls.rows.length} total URLs for this client.`,
+            message: `ðŸš€ XML sitemap parsing SUCCESS! Found ${parseResult.totalFound} URLs, stored ${parseResult.stored}. Database now has ${existingUrls.rows.length} total URLs for this client.`,
             advantages: [
-                '🏆 Complete URL coverage (vs ~30 from AI crawling)',
-                '⚡ 10x faster performance',
-                '💰 No Gemini API costs for URL discovery',
-                '🎯 Authoritative source (client\'s own sitemap)',
-                '🔄 Easy to keep current with new content'
+                'ðŸ† Complete URL coverage (vs ~30 from AI crawling)',
+                'âš¡ 10x faster performance',
+                'ðŸ’° No Gemini API costs for URL discovery',
+                'ðŸŽ¯ Authoritative source (client\'s own sitemap)',
+                'ðŸ”„ Easy to keep current with new content'
             ]
         });
         
@@ -2638,7 +2638,7 @@ app.post('/api/test/sitemap', async (req, res) => {
 // CRITICAL: Database cleanup endpoint to remove cross-contaminated URLs
 app.post('/api/admin/cleanup-cross-contamination', async (req, res) => {
     try {
-        console.log('🧹 Starting cross-contamination cleanup...');
+        console.log('ðŸ§¹ Starting cross-contamination cleanup...');
         
         // Get all clients with their domains
         const clients = await pool.query('SELECT id, name, "websiteUrl" FROM clients WHERE "websiteUrl" IS NOT NULL');
@@ -2678,7 +2678,7 @@ app.post('/api/admin/cleanup-cross-contamination', async (req, res) => {
                         examples: crossUrls.rows.slice(0, 3).map(row => row.url)
                     });
                     
-                    console.log(`🧹 Cleaned ${cleanedCount} cross-contaminated URLs for ${client.name}`);
+                    console.log(`ðŸ§¹ Cleaned ${cleanedCount} cross-contaminated URLs for ${client.name}`);
                 }
                 
             } catch (clientError) {
@@ -2953,7 +2953,7 @@ app.post('/api/generate/complete-blog', async (req, res) => {
                     Keywords: ${link.keywords || 'N/A'}
                `).join('\n')}
                
-               🚨 CRITICAL LINKING RULES: 
+               ðŸš¨ CRITICAL LINKING RULES: 
                - Use EXACT templates shown above: {{LINK_1}}, {{LINK_2}}, etc.
                - Format: <a href="{{LINK_1}}">descriptive anchor text</a>
                - Maximum ONE use per template - NO EXCEPTIONS
@@ -2998,13 +2998,13 @@ app.post('/api/generate/complete-blog', async (req, res) => {
             - Use bulleted lists when appropriate instead of long paragraphs
             
             PARAGRAPH EXAMPLES:
-            ✅ GOOD (2-4 sentences, one idea):
+            âœ… GOOD (2-4 sentences, one idea):
             "Good SEO helps potential customers find you through search engines. It involves optimizing your site's structure, content, and authority. By ranking higher for relevant keywords, you attract qualified traffic. This leads to more leads and sales for your business."
             
-            ❌ BAD (wall of text):
+            âŒ BAD (wall of text):
             "Good SEO is the practice of helping potential customers find you through search engines because it involves optimizing your site's structure, content, and overall authority so that you can rank higher for the keywords that people are searching for..."
             
-            ✅ SINGLE-SENTENCE PARAGRAPH for emphasis:
+            âœ… SINGLE-SENTENCE PARAGRAPH for emphasis:
             "This is the key point that changes everything."
             
             Remember: Mobile users will see longer paragraphs as intimidating blocks of text.
@@ -3088,7 +3088,7 @@ app.post('/api/generate/complete-blog', async (req, res) => {
         const contentData = JSON.parse(contentResponse.text);
 
         // CRITICAL: Replace URL templates with actual URLs
-        console.log('🔧 Applying template-based URL replacement to complete blog content...');
+        console.log('ðŸ”§ Applying template-based URL replacement to complete blog content...');
         contentData.content = replaceUrlTemplatesWithReal(contentData.content, internalLinks);
         
         // Validate internal links in complete blog content
@@ -3151,14 +3151,14 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
     }
 
     try {
-        console.log(`🍀 LUCKY MODE: Generating and auto-publishing blog for ${client.name}`);
+        console.log(`ðŸ€ LUCKY MODE: Generating and auto-publishing blog for ${client.name}`);
         
         // Step 1: Generate Topic (with deduplication)
-        console.log(`📝 Step 1: Starting topic generation with deduplication...`);
+        console.log(`ðŸ“ Step 1: Starting topic generation with deduplication...`);
         const topicResult = await generateUniqueTopicForClient(clientId, client);
         const topic = topicResult.topic;
         const sources = topicResult.sources;
-        console.log(`✅ Generated unique topic avoiding ${topicResult.existingTopicsCount} existing topics`);
+        console.log(`âœ… Generated unique topic avoiding ${topicResult.existingTopicsCount} existing topics`);
 
         // Step 2: Generate Plan
         const planPrompt = `
@@ -3193,13 +3193,13 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         });
         
         const plan = JSON.parse(planResponse.text);
-        console.log(`✅ Step 2 Complete: Plan generated - "${plan.title}"`);
+        console.log(`âœ… Step 2 Complete: Plan generated - "${plan.title}"`);
 
         // Step 3: Start Image Generation in Parallel (Non-blocking)
-        console.log(`🖼️ Step 3: Starting parallel image generation...`);
+        console.log(`ðŸ–¼ï¸ Step 3: Starting parallel image generation...`);
         const imagePromise = generateFeaturedImage(plan.title, client.industry)
             .catch(error => {
-                console.warn('⚠️ Image generation failed, continuing without image:', error.message);
+                console.warn('âš ï¸ Image generation failed, continuing without image:', error.message);
                 return null; // Return null on failure so Lucky mode continues
             });
 
@@ -3232,7 +3232,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         }
 
         // Step 4.5: Get real-time topical external links from Google Search
-        console.log(`🔍 Step 4.5: Retrieving topic-specific external links for "${plan.title}"`);
+        console.log(`ðŸ” Step 4.5: Retrieving topic-specific external links for "${plan.title}"`);
         let topicalExternalLinks = [];
         try {
             const topicalLinksResult = await pool.query(
@@ -3241,15 +3241,15 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             );
             
             topicalExternalLinks = topicalLinksResult.rows.map(row => row.url);
-            console.log(`🎯 Found ${topicalExternalLinks.length} validated topical external links`);
+            console.log(`ðŸŽ¯ Found ${topicalExternalLinks.length} validated topical external links`);
             
             topicalLinksResult.rows.forEach((link, index) => {
-                console.log(`🔗 Topical Link ${index + 1}: ${link.url} [Authority: ${link.authority_score}] [${link.domain}]`);
+                console.log(`ðŸ”— Topical Link ${index + 1}: ${link.url} [Authority: ${link.authority_score}] [${link.domain}]`);
             });
             
             // If no topical links found, do a dedicated Google Search for external links
             if (topicalExternalLinks.length === 0) {
-                console.log(`🔍 No stored topical links found, performing dedicated Google Search for external links...`);
+                console.log(`ðŸ” No stored topical links found, performing dedicated Google Search for external links...`);
                 
                 const externalLinkSearchPrompt = `Using Google Search, find 8-10 authoritative sources about "${plan.title}" in the ${client.industry} industry. Focus on:
                 - Government websites (.gov domains)
@@ -3269,7 +3269,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                 });
                 
                 const externalSources = externalSearchResponse.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-                console.log(`📊 Dedicated external link search found ${externalSources.length} sources`);
+                console.log(`ðŸ“Š Dedicated external link search found ${externalSources.length} sources`);
                 
                 // Validate these sources
                 for (const source of externalSources) {
@@ -3278,7 +3278,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                         
                         // CRITICAL FIX: Filter out Google redirect URLs that expire
                         if (url.includes('grounding-api-redirect') || url.includes('vertexaisearch.cloud.google.com')) {
-                            console.log(`🚫 Skipping Google redirect URL in dedicated search: ${url.substring(0, 80)}...`);
+                            console.log(`ðŸš« Skipping Google redirect URL in dedicated search: ${url.substring(0, 80)}...`);
                             continue;
                         }
                         
@@ -3286,10 +3286,10 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                             const isValid = await validateUrlExists(url);
                             if (isValid) {
                                 topicalExternalLinks.push(url);
-                                console.log(`✅ Added dedicated search link: ${url}`);
+                                console.log(`âœ… Added dedicated search link: ${url}`);
                             }
                         } catch (error) {
-                            console.log(`❌ Invalid dedicated link: ${url}`);
+                            console.log(`âŒ Invalid dedicated link: ${url}`);
                         }
                     }
                 }
@@ -3301,46 +3301,46 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
 
         // ENHANCED: Real-time page discovery for deep linking
         if (topicalExternalLinks.length < 3) {
-            console.warn(`⚠️ Only ${topicalExternalLinks.length} topical links available (Google redirects filtered), performing real-time page discovery...`);
+            console.warn(`âš ï¸ Only ${topicalExternalLinks.length} topical links available (Google redirects filtered), performing real-time page discovery...`);
             
             // Get verified root domains for deep link discovery
             const verifiedLinks = getVerifiedExternalLinks(client.industry);
-            console.log(`🔍 Starting real-time page discovery on ${verifiedLinks.length} verified domains for topic: "${plan.title}"`);
+            console.log(`ðŸ” Starting real-time page discovery on ${verifiedLinks.length} verified domains for topic: "${plan.title}"`);
             
             // Discover deep links from verified domains
             for (const rootDomain of verifiedLinks.slice(0, 4)) { // Limit to 4 domains for performance
                 if (topicalExternalLinks.length >= 6) break; // Stop when we have enough links
                 
                 try {
-                    console.log(`🕷️ Discovering pages on ${rootDomain} relevant to "${plan.title}"`);
+                    console.log(`ðŸ•·ï¸ Discovering pages on ${rootDomain} relevant to "${plan.title}"`);
                     const deepLinks = await discoverRelevantPages(rootDomain, plan.title, client.industry);
                     
                     for (const deepLink of deepLinks) {
                         if (!topicalExternalLinks.includes(deepLink) && topicalExternalLinks.length < 6) {
                             topicalExternalLinks.push(deepLink);
-                            console.log(`✅ Added deep link: ${deepLink}`);
+                            console.log(`âœ… Added deep link: ${deepLink}`);
                         }
                     }
                     
                     // Add root domain as fallback if no deep links found
                     if (deepLinks.length === 0 && !topicalExternalLinks.includes(rootDomain)) {
                         topicalExternalLinks.push(rootDomain);
-                        console.log(`🔄 Added root domain fallback: ${rootDomain}`);
+                        console.log(`ðŸ”„ Added root domain fallback: ${rootDomain}`);
                     }
                     
                 } catch (discoveryError) {
-                    console.log(`⚠️ Page discovery failed for ${rootDomain}, using root domain: ${discoveryError.message}`);
+                    console.log(`âš ï¸ Page discovery failed for ${rootDomain}, using root domain: ${discoveryError.message}`);
                     if (!topicalExternalLinks.includes(rootDomain)) {
                         topicalExternalLinks.push(rootDomain);
                     }
                 }
             }
             
-            console.log(`📊 Real-time discovery complete: ${topicalExternalLinks.length} total external links`);
+            console.log(`ðŸ“Š Real-time discovery complete: ${topicalExternalLinks.length} total external links`);
         }
 
         // Ensure we have the external links available for the content prompt
-        console.log(`📋 Final external links for content generation: ${topicalExternalLinks.length} URLs`);
+        console.log(`ðŸ“‹ Final external links for content generation: ${topicalExternalLinks.length} URLs`);
         topicalExternalLinks.forEach((url, index) => {
             console.log(`   ${index + 1}. ${url}`);
         });
@@ -3355,7 +3355,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                     Keywords: ${link.keywords || 'N/A'}
                `).join('\n')}
                
-               🚨 CRITICAL LINKING RULES: 
+               ðŸš¨ CRITICAL LINKING RULES: 
                - Use EXACT templates shown above: {{LINK_1}}, {{LINK_2}}, etc.
                - Format: <a href="{{LINK_1}}">descriptive anchor text</a>
                - Maximum ONE use per template - NO EXCEPTIONS
@@ -3370,12 +3370,12 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         
         // Create external links context with discovered deep links
         const externalLinksContext = topicalExternalLinks.length > 0 
-            ? `\n🚀 MANDATORY EXTERNAL LINKS - REAL-TIME DISCOVERED & VALIDATED:
+            ? `\nðŸš€ MANDATORY EXTERNAL LINKS - REAL-TIME DISCOVERED & VALIDATED:
             These URLs were discovered in real-time and validated specifically for your topic: "${plan.title}"
-            ✅ YOU MUST USE 3-6 OF THESE VALIDATED URLS (they are guaranteed to work):
-            ${topicalExternalLinks.map((url, index) => `${index + 1}. ${url} ← VALIDATED & TOPIC-RELEVANT`).join('\n            ')}
+            âœ… YOU MUST USE 3-6 OF THESE VALIDATED URLS (they are guaranteed to work):
+            ${topicalExternalLinks.map((url, index) => `${index + 1}. ${url} â† VALIDATED & TOPIC-RELEVANT`).join('\n            ')}
             
-            🚨 CRITICAL REQUIREMENT:
+            ðŸš¨ CRITICAL REQUIREMENT:
             - YOU MUST INCLUDE AT LEAST 3-4 EXTERNAL LINKS FROM THE LIST ABOVE
             - These links were specifically discovered for your topic
             - All links have been validated and are guaranteed to work
@@ -3387,8 +3387,8 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             - "According to <a href="https://www.bbc.com/innovation" target="_blank" rel="noopener noreferrer">BBC Innovation</a> coverage..."
             - "Recent <a href="https://www.census.gov" target="_blank" rel="noopener noreferrer">U.S. Census data</a> shows..."
             
-            ❌ CONTENT WILL BE REJECTED IF YOU DON'T INCLUDE EXTERNAL LINKS FROM THE LIST ABOVE`
-            : '\n⚠️ No external links available - do not include any external links.';
+            âŒ CONTENT WILL BE REJECTED IF YOU DON'T INCLUDE EXTERNAL LINKS FROM THE LIST ABOVE`
+            : '\nâš ï¸ No external links available - do not include any external links.';
         
         const contentPrompt = `
             You are an expert content writer for a company in the '${client.industry}' industry.
@@ -3423,13 +3423,13 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             - Use bulleted lists when appropriate instead of long paragraphs
             
             PARAGRAPH EXAMPLES:
-            ✅ GOOD (2-4 sentences, one idea):
+            âœ… GOOD (2-4 sentences, one idea):
             "Good SEO helps potential customers find you through search engines. It involves optimizing your site's structure, content, and authority. By ranking higher for relevant keywords, you attract qualified traffic. This leads to more leads and sales for your business."
             
-            ❌ BAD (wall of text):
+            âŒ BAD (wall of text):
             "Good SEO is the practice of helping potential customers find you through search engines because it involves optimizing your site's structure, content, and overall authority so that you can rank higher for the keywords that people are searching for..."
             
-            ✅ SINGLE-SENTENCE PARAGRAPH for emphasis:
+            âœ… SINGLE-SENTENCE PARAGRAPH for emphasis:
             "This is the key point that changes everything."
             
             Remember: Mobile users will see longer paragraphs as intimidating blocks of text.
@@ -3514,7 +3514,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         const contentData = JSON.parse(contentResponse.text);
 
         // CRITICAL: Replace URL templates with actual URLs
-        console.log('🔧 Applying template-based URL replacement to lucky blog content...');
+        console.log('ðŸ”§ Applying template-based URL replacement to lucky blog content...');
         contentData.content = replaceUrlTemplatesWithReal(contentData.content, internalLinks);
         
         // Validate internal links in lucky blog content
@@ -3524,21 +3524,21 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         await validateExternalLinks(contentData.content);
 
         // Step 5: Wait for Parallel Image Generation and Upload
-        console.log(`🖼️ Step 5: Waiting for parallel image generation to complete...`);
+        console.log(`ðŸ–¼ï¸ Step 5: Waiting for parallel image generation to complete...`);
         let featuredImageId = null;
         
         try {
             // Wait for the parallel image generation to complete
-            console.log(`⏳ Awaiting image promise...`);
+            console.log(`â³ Awaiting image promise...`);
             const imageData = await imagePromise;
-            console.log(`📊 Image promise resolved:`, imageData ? 'SUCCESS' : 'NULL');
+            console.log(`ðŸ“Š Image promise resolved:`, imageData ? 'SUCCESS' : 'NULL');
             
             if (imageData && imageData.imageBase64) {
-                console.log(`✅ Image generation completed, uploading to WordPress...`);
-                console.log(`📏 Image data size: ${imageData.imageBase64.length} characters (base64)`);
+                console.log(`âœ… Image generation completed, uploading to WordPress...`);
+                console.log(`ðŸ“ Image data size: ${imageData.imageBase64.length} characters (base64)`);
                 
                 const filename = `featured-${plan.title.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.jpg`;
-                console.log(`📁 Upload filename: ${filename}`);
+                console.log(`ðŸ“ Upload filename: ${filename}`);
                 
                 const uploadedImage = await uploadImageToWordPress(
                     imageData.imageBase64,
@@ -3548,16 +3548,16 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                 );
                 
                 featuredImageId = uploadedImage.id;
-                console.log(`✅ Featured image uploaded successfully: ID=${featuredImageId}, URL=${uploadedImage.url}`);
+                console.log(`âœ… Featured image uploaded successfully: ID=${featuredImageId}, URL=${uploadedImage.url}`);
             } else {
-                console.warn(`⚠️ No image data available from parallel generation`);
-                console.warn(`📊 ImageData object:`, imageData);
-                console.warn(`🔧 Possible causes: OpenAI API key missing, generation failed, or network error`);
+                console.warn(`âš ï¸ No image data available from parallel generation`);
+                console.warn(`ðŸ“Š ImageData object:`, imageData);
+                console.warn(`ðŸ”§ Possible causes: OpenAI API key missing, generation failed, or network error`);
             }
             
         } catch (imageError) {
-            console.error('❌ Failed to process/upload featured image:', imageError);
-            console.error('🔍 Error details:', {
+            console.error('âŒ Failed to process/upload featured image:', imageError);
+            console.error('ðŸ” Error details:', {
                 message: imageError.message,
                 stack: imageError.stack?.split('\n').slice(0, 3).join('\n')
             });
@@ -3565,7 +3565,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         }
 
         // Step 6: Create WordPress Draft
-        console.log(`📝 Creating WordPress draft for "${plan.title}"`);
+        console.log(`ðŸ“ Creating WordPress draft for "${plan.title}"`);
         
         // Handle tags - convert tag names to IDs or create new tags
         let tagIds = [];
@@ -3638,10 +3638,10 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                     );
                     
                     fullContent = openGraphTags + fullContent;
-                    console.log(`🌐 Added Open Graph meta tags with featured image: ${imageUrl}`);
+                    console.log(`ðŸŒ Added Open Graph meta tags with featured image: ${imageUrl}`);
                 }
             } catch (ogError) {
-                console.warn('⚠️ Failed to add Open Graph tags:', ogError.message);
+                console.warn('âš ï¸ Failed to add Open Graph tags:', ogError.message);
             }
         }
         
@@ -3657,15 +3657,15 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
         // Add featured image if uploaded successfully
         if (featuredImageId) {
             postData.featured_media = featuredImageId;
-            console.log(`🖼️ Setting featured image ID: ${featuredImageId}`);
+            console.log(`ðŸ–¼ï¸ Setting featured image ID: ${featuredImageId}`);
         }
         
         const wpApiUrl = `${client.wp.url.replace(/\/$/, '')}/wp-json/wp/v2/posts`;
         
         // Enhanced WordPress API call with WordFence compatibility
-        console.log('📝 Creating WordPress post...');
-        console.log('🔗 WordPress API URL:', wpApiUrl);
-        console.log('📊 Post data:', { 
+        console.log('ðŸ“ Creating WordPress post...');
+        console.log('ðŸ”— WordPress API URL:', wpApiUrl);
+        console.log('ðŸ“Š Post data:', { 
             title: postData.title, 
             contentLength: postData.content.length, 
             status: postData.status,
@@ -3681,31 +3681,31 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
             body: JSON.stringify(postData)
         });
         
-        console.log('📊 WordPress API response status:', wpResponse.status);
-        console.log('📋 WordPress API response headers:', Object.fromEntries(wpResponse.headers.entries()));
+        console.log('ðŸ“Š WordPress API response status:', wpResponse.status);
+        console.log('ðŸ“‹ WordPress API response headers:', Object.fromEntries(wpResponse.headers.entries()));
 
         if (!wpResponse.ok) {
             const errorText = await wpResponse.text();
-            console.error('❌ WordPress publishing failed:', errorText);
-            console.error('📊 Response status:', wpResponse.status);
-            console.error('📋 Response headers:', Object.fromEntries(wpResponse.headers.entries()));
+            console.error('âŒ WordPress publishing failed:', errorText);
+            console.error('ðŸ“Š Response status:', wpResponse.status);
+            console.error('ðŸ“‹ Response headers:', Object.fromEntries(wpResponse.headers.entries()));
             
             // WordFence-specific error handling
             let errorMessage = `WordPress publishing failed: ${wpResponse.status} ${wpResponse.statusText}`;
             let suggestions = [];
             
             if (wpResponse.status === 403) {
-                errorMessage = '🛡️ WordPress API access FORBIDDEN - WordFence is likely blocking the request';
+                errorMessage = 'ðŸ›¡ï¸ WordPress API access FORBIDDEN - WordFence is likely blocking the request';
                 suggestions = [
-                    'Go to WordFence → All Options → Brute Force Protection',
+                    'Go to WordFence â†’ All Options â†’ Brute Force Protection',
                     'Ensure "Disable WordPress application passwords" is UNCHECKED',
-                    'Check WordFence → Tools → Live Traffic for blocked requests',
+                    'Check WordFence â†’ Tools â†’ Live Traffic for blocked requests',
                     'Add Blog MONKEE IP to WordFence allowlist',
-                    'Verify REST API is enabled: Settings → Permalinks → Save',
+                    'Verify REST API is enabled: Settings â†’ Permalinks â†’ Save',
                     'Check user has publish_posts capability'
                 ];
             } else if (wpResponse.status === 401) {
-                errorMessage = '🔐 WordPress authentication failed';
+                errorMessage = 'ðŸ” WordPress authentication failed';
                 suggestions = [
                     'Verify WordPress username and app password are correct',
                     'Check if Application Passwords are enabled',
@@ -3713,15 +3713,15 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                     'Try regenerating the Application Password'
                 ];
             } else if (wpResponse.status === 429) {
-                errorMessage = '⏱️ Rate limit exceeded - WordFence is throttling requests';
+                errorMessage = 'â±ï¸ Rate limit exceeded - WordFence is throttling requests';
                 suggestions = [
                     'Check WordFence rate limiting settings',
                     'Add Blog MONKEE to WordFence trusted sources',
                     'Wait 5-10 minutes before trying again',
-                    'Check WordFence → All Options → Rate Limiting'
+                    'Check WordFence â†’ All Options â†’ Rate Limiting'
                 ];
             } else if (wpResponse.status >= 500) {
-                errorMessage = '🔥 WordPress server error';
+                errorMessage = 'ðŸ”¥ WordPress server error';
                 suggestions = [
                     'Check WordPress site is accessible and healthy',
                     'Review WordPress error logs in cPanel/hosting',
@@ -3730,7 +3730,7 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                 ];
             }
             
-            console.error('💡 WordFence Troubleshooting Suggestions:');
+            console.error('ðŸ’¡ WordFence Troubleshooting Suggestions:');
             suggestions.forEach(suggestion => console.error(`   - ${suggestion}`));
             
             throw new Error(`${errorMessage}. Response: ${errorText}`);
@@ -3757,12 +3757,12 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                 'DELETE FROM topic_external_links WHERE client_id = $1 AND topic = $2',
                 [clientId, plan.title]
             );
-            console.log(`🧹 Cleaned up ${cleanupResult.rowCount} topical external links for "${plan.title}"`);
+            console.log(`ðŸ§¹ Cleaned up ${cleanupResult.rowCount} topical external links for "${plan.title}"`);
         } catch (cleanupError) {
-            console.log('⚠️ Failed to cleanup topical links:', cleanupError.message);
+            console.log('âš ï¸ Failed to cleanup topical links:', cleanupError.message);
         }
 
-        console.log(`🎉 LUCKY SUCCESS: "${plan.title}" created as draft at ${wpPost.link}`);
+        console.log(`ðŸŽ‰ LUCKY SUCCESS: "${plan.title}" created as draft at ${wpPost.link}`);
 
         // Return complete success data
         res.json({
@@ -3777,13 +3777,13 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
                 postUrl: wpPost.link,
                 editUrl: wpPost.link ? wpPost.link.replace(/\/$/, '') + '/wp-admin/post.php?post=' + wpPost.id + '&action=edit' : null,
                 status: 'draft',
-                message: '🍀 Lucky! Blog post generated and created as draft for review!'
+                message: 'ðŸ€ Lucky! Blog post generated and created as draft for review!'
             },
             isLucky: true
         });
 
     } catch (error) {
-        console.error('🍀 LUCKY MODE ERROR:', error);
+        console.error('ðŸ€ LUCKY MODE ERROR:', error);
         res.status(500).json({ 
             error: 'Lucky mode failed', 
             details: error.message,
@@ -3796,7 +3796,5 @@ app.post('/api/generate/lucky-blog', async (req, res) => {
 // Start server
 app.listen(port, () => {
   console.log(`Blog MONKEE backend listening at http://localhost:${port}`);
-  console.log('🔄 Database migration version: v2.0 - Enhanced crawling support');
+  console.log('ðŸ”„ Database migration version: v2.0 - Enhanced crawling support');
   initializeDb();
-});/ /   G H L   T e s t   E n d p o i n t  
- 
