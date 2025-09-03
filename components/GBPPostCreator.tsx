@@ -51,19 +51,18 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
     setSuccess(null);
 
     try {
-      const scheduledDate = scheduledAt ? new Date(scheduledAt) : undefined;
-      const result = await createGBPPost(client.id, topic, scheduledDate);
+      // Phase 1: Simple content generation only
+      const result = await createGBPPost(client.id, topic);
       
       if (result.success) {
         setSuccess(result.message);
         setPreview({
           content: result.post.content,
-          imageUrl: result.post.image_url,
-          moreInfoUrl: result.post.more_info_url || '',
-          scheduledAt: new Date(result.post.scheduled_at || Date.now())
+          imageUrl: undefined, // Phase 1: No images yet
+          moreInfoUrl: '', // Phase 1: No more info links yet
+          scheduledAt: new Date(result.post.created_at)
         });
         setTopic('');
-        setScheduledAt('');
         onPostCreated?.();
       } else {
         setError('Failed to create GBP post');
@@ -217,7 +216,7 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
         )}
       </div>
 
-      {/* Post Creation Form */}
+      {/* Phase 1: Simple Post Creation Form */}
       <div className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -232,18 +231,6 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Schedule Post (Optional)
-          </label>
-          <input
-            type="datetime-local"
-            value={scheduledAt}
-            onChange={(e) => setScheduledAt(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
         <button
           onClick={handleCreatePost}
           disabled={isCreating || !topic.trim()}
@@ -252,12 +239,12 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
           {isCreating ? (
             <>
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
-              Creating Post...
+              Generating Content...
             </>
           ) : (
             <>
               <PlusCircleIcon className="w-5 h-5 mr-2" />
-              Create GBP Post
+              Generate GBP Content
             </>
           )}
         </button>
@@ -276,36 +263,23 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
         </div>
       )}
 
-      {/* Post Preview */}
+      {/* Phase 1: Content Preview */}
       {preview && (
         <div className="mt-6 p-4 bg-gray-50 rounded-lg border">
-          <h3 className="text-lg font-semibold text-gray-900 mb-3">Post Preview</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Generated GBP Content</h3>
           
           <div className="bg-white p-4 rounded-lg shadow-sm">
-            {preview.imageUrl && (
-              <img 
-                src={preview.imageUrl} 
-                alt="Post preview" 
-                className="w-full h-64 object-cover rounded-lg mb-3"
-              />
-            )}
-            
-            <p className="text-gray-800 mb-3">{preview.content}</p>
+            <p className="text-gray-800 mb-3 text-lg leading-relaxed">{preview.content}</p>
             
             <div className="flex items-center justify-between text-sm text-gray-600">
               <div className="flex items-center">
                 <CalendarIcon className="w-4 h-4 mr-1" />
-                Scheduled: {preview.scheduledAt.toLocaleString()}
+                Created: {preview.scheduledAt.toLocaleString()}
               </div>
               
-              {preview.moreInfoUrl && (
-                <div className="flex items-center">
-                  <LinkIcon className="w-4 h-4 mr-1" />
-                  <a href={preview.moreInfoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-                    Learn More
-                  </a>
-                </div>
-              )}
+              <div className="text-xs text-gray-500">
+                {preview.content.length} characters
+              </div>
             </div>
           </div>
         </div>

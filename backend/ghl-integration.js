@@ -181,16 +181,17 @@ The image should look like a genuine photograph taken by a professional photogra
 }
 
 // API Endpoint: Create GBP Post
+// Phase 1: Simplified GBP Post Creation (Content Only)
 function createGBPPostEndpoint(app, pool, ai, openai, axios) {
   app.post('/api/gbp/create-post', async (req, res) => {
     try {
-      const { clientId, topic, scheduledAt } = req.body;
+      const { clientId, topic } = req.body;
       
       if (!clientId || !topic) {
         return res.status(400).json({ error: 'Client ID and topic are required' });
       }
 
-      console.log(`🚀 Starting GBP post creation for client: ${clientId}, topic: "${topic}"`);
+      console.log(`🚀 Phase 1: Creating GBP content for client: ${clientId}, topic: "${topic}"`);
 
       // Get client information
       const client = await pool.connect();
@@ -201,107 +202,52 @@ function createGBPPostEndpoint(app, pool, ai, openai, axios) {
           return res.status(404).json({ error: 'Client not found' });
         }
         businessInfo = result.rows[0];
+        console.log(`📊 Client found: ${businessInfo.name} (${businessInfo.industry})`);
       } finally {
         client.release();
       }
 
-      // Get GoHighLevel access token
-      const accessToken = await getGHLAccessToken(clientId, pool);
-      
-      // Get location ID from sub-accounts
-      const subAccountClient = await pool.connect();
-      let locationId;
-      try {
-        const result = await subAccountClient.query(
-          'SELECT location_id FROM ghl_sub_accounts WHERE client_id = $1 AND is_active = true LIMIT 1',
-          [clientId]
-        );
-        if (result.rows.length === 0) {
-          return res.status(404).json({ error: 'No active GoHighLevel sub-account found' });
-        }
-        locationId = result.rows[0].location_id;
-      } finally {
-        subAccountClient.release();
-      }
-
-      // Generate content first, then image
+      // Phase 1: Generate content only
+      console.log(`🤖 Generating GBP content...`);
       const content = await generateGBPContent(topic, businessInfo, ai);
-      const imageResult = await generateGBPImage(content, businessInfo, openai);
+      console.log(`✅ Content generated: ${content.substring(0, 100)}...`);
 
-      // Create "more info" landing page URL (simplified for now)
-      const moreInfoUrl = `${businessInfo.websiteUrl || 'https://example.com'}/learn-more`;
-
-      // Get connected accounts
-      const accounts = await getConnectedAccounts(locationId, accessToken, axios);
-      const gbpAccount = accounts.find(account => 
-        account.platform === 'google_business' || 
-        account.platform === 'google' ||
-        account.name?.toLowerCase().includes('google')
-      );
-
-      if (!gbpAccount) {
-        return res.status(404).json({ error: 'No Google Business Profile account connected' });
-      }
-
-      // Create post data
-      const postData = {
-        accountId: gbpAccount.id,
-        content: content,
-        media: imageResult ? [imageResult.url] : [],
-        callToAction: {
-          type: 'LEARN_MORE',
-          url: moreInfoUrl
-        },
-        scheduledAt: scheduledAt || new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
-      };
-
-      // Create post in GoHighLevel
-      const ghlPost = await createSocialPost(locationId, postData, accessToken, axios);
-
-      // Save to database
+      // Save to database (simple version)
       const dbClient = await pool.connect();
       try {
         const result = await dbClient.query(
-          `INSERT INTO gbp_posts (client_id, content, image_url, more_info_url, cta_text, status, scheduled_at, ghl_post_id, ghl_account_id)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          `INSERT INTO gbp_posts (client_id, content, status, created_at)
+           VALUES ($1, $2, $3, $4)
            RETURNING *`,
           [
             clientId,
             content,
-            imageResult?.url || null,
-            moreInfoUrl,
-            'Learn More',
-            'scheduled',
-            postData.scheduledAt,
-            ghlPost.id,
-            gbpAccount.id
+            'draft', // Phase 1: Just save as draft
+            new Date()
           ]
         );
 
-        console.log(`✅ GBP post created and saved: ${result.rows[0].id}`);
-
+        const savedPost = result.rows[0];
+        console.log(`✅ GBP post saved to database: ${savedPost.id}`);
+        
         res.json({
           success: true,
           post: {
-            id: result.rows[0].id,
-            content: content,
-            imageUrl: imageResult?.url,
-            moreInfoUrl: moreInfoUrl,
-            scheduledAt: postData.scheduledAt,
-            ghlPostId: ghlPost.id,
-            status: 'scheduled'
+            id: savedPost.id,
+            content: savedPost.content,
+            status: savedPost.status,
+            created_at: savedPost.created_at
           },
-          message: '🎉 GBP post created and scheduled successfully!'
+          message: '✅ GBP content generated and saved successfully!'
         });
-
       } finally {
         dbClient.release();
       }
 
     } catch (error) {
-      console.error('❌ GBP post creation error:', error);
+      console.error('❌ Error creating GBP post:', error.message);
       res.status(500).json({ 
-        error: 'Failed to create GBP post', 
+        error: 'Failed to create GBP post',
         details: error.message 
       });
     }
