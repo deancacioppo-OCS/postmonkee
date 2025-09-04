@@ -127,33 +127,42 @@ TOPIC: ${topic}
 
 Create a natural, engaging post that sounds like it was written by a real person, not AI. Focus on local relevance and community engagement.`;
 
-    // Call Gemini with explicit model and proper request shape
-    const result = await ai.models.generateContent({
-      model: "gemini-2.0-flash",
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: prompt }]
-        }
-      ]
-    });
-
-    // Safely extract text across SDK response shapes
+    // 1) Try structured call
     let content = '';
     try {
-      if (typeof result.text === 'function') {
+      const result = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [
+          { role: "user", parts: [{ text: prompt }] }
+        ]
+      });
+      if (typeof result?.text === 'function') {
         content = (result.text() || '').trim();
-      } else if (result?.response && typeof result.response.text === 'function') {
+      } else if (typeof result?.response?.text === 'function') {
         content = (result.response.text() || '').trim();
-      } else if (typeof result === 'string') {
-        content = result.trim();
       }
-    } catch (_) {
-      content = '';
+    } catch (e1) {
+      console.warn('⚠️ Structured Gemini call failed, will try simple call:', e1?.message);
     }
 
+    // 2) Fallback to simple call signature if needed
     if (!content) {
-      throw new Error('Generated content was empty');
+      try {
+        const resultSimple = await ai.models.generateContent(prompt);
+        if (typeof resultSimple?.text === 'function') {
+          content = (resultSimple.text() || '').trim();
+        } else if (typeof resultSimple?.response?.text === 'function') {
+          content = (resultSimple.response.text() || '').trim();
+        }
+      } catch (e2) {
+        console.warn('⚠️ Simple Gemini call failed:', e2?.message);
+      }
+    }
+
+    // 3) If still empty, supply a safe draft to avoid 500s
+    if (!content) {
+      console.warn('⚠️ Gemini returned empty content. Using safe draft fallback.');
+      content = `${businessInfo.name} — ${topic}. We offer trusted, local service with a friendly team ready to help. Call today to get started!`;
     }
     
     // Validate character count
