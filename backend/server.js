@@ -73,7 +73,7 @@ async function initializeDb() {
     try {
       const ghlColumnCheck = await client.query(`
         SELECT column_name 
-        FROM information_schema.columns 
+      FROM information_schema.columns 
         WHERE table_name = 'clients' AND column_name = 'ghlLocationId';
       `);
       
@@ -132,10 +132,10 @@ async function initializeDb() {
     `);
 
     // Create gbp_posts table for Google Business Profile posts
-    await client.query(`
+      await client.query(`
       CREATE TABLE IF NOT EXISTS gbp_posts (
-        id SERIAL PRIMARY KEY,
-        client_id TEXT NOT NULL,
+          id SERIAL PRIMARY KEY,
+          client_id TEXT NOT NULL,
         content TEXT NOT NULL,
         image_url VARCHAR(500),
         more_info_url VARCHAR(500),
@@ -147,9 +147,9 @@ async function initializeDb() {
         ghl_account_id VARCHAR(200),
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-      );
-    `);
-
+        );
+      `);
+      
     // Create ghl_sub_accounts table for GoHighLevel sub-account management
     await client.query(`
       CREATE TABLE IF NOT EXISTS ghl_sub_accounts (
@@ -324,7 +324,7 @@ try {
   console.log('✅ testGHLConnectionEndpoint registered');
   
   console.log('✅ All ghl-integration endpoints registered successfully');
-} catch (error) {
+    } catch (error) {
   console.error('❌ Error registering ghl-integration endpoints:', error.message);
   console.error('❌ Full error:', error);
 }
