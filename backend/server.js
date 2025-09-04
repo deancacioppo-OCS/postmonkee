@@ -155,8 +155,8 @@ async function initializeDb() {
       CREATE TABLE IF NOT EXISTS ghl_sub_accounts (
         id SERIAL PRIMARY KEY,
         client_id TEXT NOT NULL,
-        location_id VARCHAR(200) NOT NULL,
-        sub_account_name VARCHAR(200),
+        location_id TEXT NOT NULL,
+        sub_account_name TEXT,
         access_token TEXT,
         is_active BOOLEAN DEFAULT true,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
@@ -164,6 +164,15 @@ async function initializeDb() {
         UNIQUE(client_id, location_id)
       );
     `);
+
+    // Widen columns if existing DB has smaller types
+    try {
+      await client.query(`ALTER TABLE ghl_sub_accounts ALTER COLUMN location_id TYPE TEXT;`);
+      await client.query(`ALTER TABLE ghl_sub_accounts ALTER COLUMN sub_account_name TYPE TEXT;`);
+      console.log('✅ Widened ghl_sub_accounts columns to TEXT');
+    } catch (alterErr) {
+      console.log('Note: Could not alter ghl_sub_accounts column types:', alterErr.message);
+    }
 
     console.log('Database tables initialized successfully.');
   } catch (err) {

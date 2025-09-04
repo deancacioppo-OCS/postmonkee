@@ -133,9 +133,10 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
     
     try {
       console.log('🔄 Loading GHL sub-accounts...');
-      const accounts = await getGHLSubAccounts(client.id);
-      setGhlSubAccounts(accounts);
-      console.log('✅ GHL sub-accounts loaded:', accounts);
+      const res = await getGHLSubAccounts(client.id);
+      const list = res?.subAccounts || [];
+      setGhlSubAccounts(list);
+      console.log('✅ GHL sub-accounts loaded:', list);
     } catch (error) {
       console.error('❌ Error loading GHL sub-accounts:', error);
       setError('Failed to load GHL sub-accounts');
@@ -144,15 +145,27 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
 
   const handleSaveGHLSubAccount = async () => {
     if (!client?.id) return;
+    if (!ghlLocationId || !ghlAccessToken) {
+      setError('Location ID and Access Token are required');
+      return;
+    }
+    if (ghlLocationId.length > 3000) {
+      setError('Location ID looks too long — please paste the GoHighLevel Location ID, not the token');
+      return;
+    }
     
     try {
       console.log('💾 Saving GHL sub-account...');
-      await saveGHLSubAccount(
+      const res = await saveGHLSubAccount(
         client.id,
         ghlLocationId,
         ghlSubAccountName,
         ghlAccessToken
       );
+      if (!res?.success) {
+        setError(res?.message || 'Failed to save GHL sub-account');
+        return;
+      }
       
       // Clear form
       setGhlSubAccountName('');
@@ -162,7 +175,7 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
       // Refresh the list
       await refreshGHLSubAccounts();
       
-      setSuccess('GHL sub-account saved successfully!');
+      setSuccess(res?.message || 'GHL sub-account saved successfully!');
     } catch (error) {
       console.error('❌ Error saving GHL sub-account:', error);
       setError('Failed to save GHL sub-account');
