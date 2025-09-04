@@ -125,24 +125,8 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
     }
   };
 
-  // Load GHL sub-accounts when component mounts - simplified approach
-  useEffect(() => {
-    if (client?.id) {
-      const loadGHLSubAccounts = async () => {
-        try {
-          console.log('🔄 Loading GHL sub-accounts...');
-          const accounts = await getGHLSubAccounts(client.id);
-          setGhlSubAccounts(accounts);
-          console.log('✅ GHL sub-accounts loaded:', accounts);
-        } catch (error) {
-          console.error('❌ Error loading GHL sub-accounts:', error);
-          setError('Failed to load GHL sub-accounts');
-        }
-      };
-      
-      loadGHLSubAccounts();
-    }
-  }, [client?.id]);
+  // Temporarily disable automatic GHL loading to fix React error #310
+  // TODO: Re-implement with proper dependency management
 
   const refreshGHLSubAccounts = async () => {
     if (!client?.id) return;
