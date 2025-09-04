@@ -127,8 +127,34 @@ TOPIC: ${topic}
 
 Create a natural, engaging post that sounds like it was written by a real person, not AI. Focus on local relevance and community engagement.`;
 
-    const result = await ai.models.generateContent(prompt);
-    const content = result.response.text().trim();
+    // Call Gemini with explicit model and proper request shape
+    const result = await ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: prompt }]
+        }
+      ]
+    });
+
+    // Safely extract text across SDK response shapes
+    let content = '';
+    try {
+      if (typeof result.text === 'function') {
+        content = (result.text() || '').trim();
+      } else if (result?.response && typeof result.response.text === 'function') {
+        content = (result.response.text() || '').trim();
+      } else if (typeof result === 'string') {
+        content = result.trim();
+      }
+    } catch (_) {
+      content = '';
+    }
+
+    if (!content) {
+      throw new Error('Generated content was empty');
+    }
     
     // Validate character count
     if (content.length > 400) {
