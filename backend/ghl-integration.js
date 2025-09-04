@@ -310,15 +310,97 @@ function createGBPPostEndpoint(app, pool, ai, openai, axios) {
         const savedPost = result.rows[0];
         console.log(`✅ GBP post saved to database: ${savedPost.id}`);
         
+        // Attempt live posting via GoHighLevel if sub-account is configured
+        let posted = false;
+        let ghlPostId = null;
+        let ghlAccountId = null;
+        let scheduledAt = null;
+        let postStatus = savedPost.status;
+        let postMessage = '✅ GBP content generated and saved successfully!';
+
+        try {
+          // Find active sub-account
+          const subRes = await dbClient.query(
+            `SELECT location_id, access_token FROM ghl_sub_accounts 
+             WHERE client_id = $1 AND is_active = true 
+             ORDER BY created_at DESC LIMIT 1`,
+            [clientId]
+          );
+
+          if (subRes.rows.length === 0) {
+            console.log('ℹ️ No active GoHighLevel sub-account found. Skipping live post.');
+          } else {
+            const { location_id: locationId, access_token: accessToken } = subRes.rows[0];
+            console.log('🔗 Using GHL location:', locationId);
+
+            // Get connected accounts and select Google Business Profile
+            const accounts = await getConnectedAccounts(locationId, accessToken, axios);
+            let gbpAccount = null;
+            if (Array.isArray(accounts)) {
+              gbpAccount = accounts.find(a => {
+                const s = JSON.stringify(a).toLowerCase();
+                return s.includes('google');
+              }) || accounts[0] || null;
+            }
+
+            if (!gbpAccount) {
+              console.log('ℹ️ No connected social accounts available. Skipping live post.');
+            } else {
+              const accountId = gbpAccount.id || gbpAccount.accountId || gbpAccount.account_id;
+              console.log('📝 Posting to GHL account:', accountId);
+
+              const callToAction = {
+                text: 'Learn More',
+                url: businessInfo.websiteUrl || businessInfo.website || ''
+              };
+
+              const created = await createSocialPost(
+                locationId,
+                {
+                  accountId,
+                  content,
+                  media: [],
+                  callToAction,
+                  scheduledAt: null
+                },
+                accessToken,
+                axios
+              );
+
+              // Best-effort extraction of IDs
+              ghlPostId = created?.id || created?.postId || created?.post?.id || null;
+              ghlAccountId = accountId || null;
+              scheduledAt = created?.scheduledAt || null;
+              posted = !!ghlPostId || !!created;
+              postStatus = scheduledAt ? 'scheduled' : (posted ? 'published' : postStatus);
+              postMessage = posted ? '🎉 Posted to GoHighLevel successfully' : postMessage;
+
+              // Update stored post metadata
+              await dbClient.query(
+                `UPDATE gbp_posts 
+                 SET status = $1, ghl_post_id = $2, ghl_account_id = $3, published_at = COALESCE($4, published_at)
+                 WHERE id = $5`,
+                [postStatus, ghlPostId, ghlAccountId, scheduledAt ? new Date(scheduledAt) : new Date(), savedPost.id]
+              );
+            }
+          }
+        } catch (ghlError) {
+          console.log('⚠️ Skipping live post due to error:', ghlError.message);
+        }
+
         res.json({
           success: true,
+          posted,
+          ghlPostId,
+          accountId: ghlAccountId,
+          scheduledAt,
           post: {
             id: savedPost.id,
             content: savedPost.content,
-            status: savedPost.status,
+            status: postStatus,
             created_at: savedPost.created_at
           },
-          message: '✅ GBP content generated and saved successfully!'
+          message: postMessage
         });
       } finally {
         dbClient.release();
