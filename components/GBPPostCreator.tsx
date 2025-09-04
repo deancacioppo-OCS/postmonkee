@@ -147,11 +147,12 @@ const GBPPostCreator: React.FC<GBPPostCreatorProps> = ({ client, onPostCreated }
     
     try {
       console.log('💾 Saving GHL sub-account...');
-      await saveGHLSubAccount(client.id, {
-        name: ghlSubAccountName,
-        locationId: ghlLocationId,
-        accessToken: ghlAccessToken
-      });
+      await saveGHLSubAccount(
+        client.id,
+        ghlLocationId,
+        ghlSubAccountName,
+        ghlAccessToken
+      );
       
       // Clear form
       setGhlSubAccountName('');
